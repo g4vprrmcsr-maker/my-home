@@ -5,96 +5,361 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>我们的小家</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
+*{margin:0;padding:0;box-sizing:border-box;}
 
-body {
-  min-height: 100vh;
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
-  font-family: 'PingFang SC', sans-serif;
-  color: #fff;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 20px;
+body{
+  min-height:100vh;
+  background:linear-gradient(135deg,#e8eaf6 0%,#f3e5f5 50%,#e1f5fe 100%);
+  font-family:'PingFang SC','Helvetica Neue',sans-serif;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
 }
 
-.glass {
-  background: rgba(255,255,255,0.08);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-radius: 24px;
-  padding: 30px;
-  width: 100%;
-  max-width: 500px;
-  margin: 20px 0;
+.page{display:none;width:100%;max-width:480px;min-height:100vh;padding:20px;flex-direction:column;}
+.page.active{display:flex;}
+
+.glass{
+  background:rgba(255,255,255,0.45);
+  backdrop-filter:blur(24px);
+  -webkit-backdrop-filter:blur(24px);
+  border:1px solid rgba(255,255,255,0.7);
+  border-radius:24px;
+  box-shadow:0 8px 32px rgba(0,0,0,0.08);
 }
 
-.title {
-  text-align: center;
-  font-size: 22px;
-  font-weight: 300;
-  letter-spacing: 4px;
-  margin-bottom: 8px;
-  color: rgba(255,255,255,0.9);
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:16px 20px;
+  margin-bottom:12px;
+}
+.topbar .name{font-size:16px;font-weight:500;color:#333;}
+.topbar .days{font-size:12px;color:rgba(0,0,0,0.35);letter-spacing:1px;}
+
+.icon-btn{
+  width:36px;height:36px;
+  background:rgba(255,255,255,0.6);
+  border:1px solid rgba(255,255,255,0.8);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:16px;
+  backdrop-filter:blur(10px);
+  transition:all 0.2s;
+}
+.icon-btn:hover{background:rgba(255,255,255,0.85);}
+
+.chat-area{
+  flex:1;
+  overflow-y:auto;
+  padding:12px 16px;
+  display:flex;
+  flex-direction:column;
+  gap:16px;
+  margin-bottom:12px;
+  max-height:calc(100vh - 220px);
+}
+.chat-area::-webkit-scrollbar{width:0;}
+
+.msg{display:flex;align-items:flex-end;gap:10px;}
+.msg.user{flex-direction:row-reverse;}
+
+.avatar{
+  width:36px;height:36px;
+  border-radius:50%;
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:14px;
+  background:rgba(255,255,255,0.5);
+  border:1px solid rgba(255,255,255,0.8);
+  overflow:hidden;
+}
+.avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%;}
+
+.claude-avatar{
+  background:rgba(255,255,255,0.35);
+  backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,0.7);
+}
+.claude-avatar svg{width:20px;height:20px;}
+
+.bubble{
+  max-width:72%;
+  padding:12px 16px;
+  border-radius:18px;
+  font-size:14px;
+  line-height:1.7;
+  color:#2c2c2c;
+  word-break:break-word;
+  white-space:pre-wrap;
+}
+.msg.ai .bubble{
+  background:rgba(255,255,255,0.55);
+  border:1px solid rgba(255,255,255,0.75);
+  border-bottom-left-radius:6px;
+}
+.msg.user .bubble{
+  background:rgba(180,160,255,0.25);
+  border:1px solid rgba(180,160,255,0.4);
+  border-bottom-right-radius:6px;
 }
 
-.subtitle {
-  text-align: center;
-  font-size: 13px;
-  color: rgba(255,255,255,0.4);
-  letter-spacing: 2px;
+.input-area{
+  display:flex;
+  align-items:flex-end;
+  gap:10px;
+  padding:12px 16px;
 }
+.input-wrap{
+  flex:1;
+  background:rgba(255,255,255,0.55);
+  border:1px solid rgba(255,255,255,0.8);
+  border-radius:20px;
+  padding:10px 16px;
+  display:flex;align-items:flex-end;
+}
+textarea{
+  flex:1;border:none;background:transparent;
+  font-size:14px;color:#333;resize:none;
+  max-height:100px;outline:none;
+  font-family:inherit;line-height:1.6;
+}
+.send-btn{
+  width:38px;height:38px;
+  background:linear-gradient(135deg,rgba(180,160,255,0.6),rgba(140,180,255,0.6));
+  border:1px solid rgba(255,255,255,0.7);
+  border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;font-size:16px;
+  backdrop-filter:blur(10px);
+  transition:all 0.2s;flex-shrink:0;
+}
+.send-btn:hover{background:linear-gradient(135deg,rgba(180,160,255,0.85),rgba(140,180,255,0.85));}
 
-.days-box {
-  text-align: center;
-  margin: 10px 0;
+.typing{display:flex;gap:4px;align-items:center;padding:4px 0;}
+.typing span{
+  width:6px;height:6px;
+  background:rgba(0,0,0,0.25);
+  border-radius:50%;
+  animation:bounce 1.2s infinite;
 }
-
-.days-number {
-  font-size: 72px;
-  font-weight: 100;
-  color: #a8d8ea;
-  line-height: 1;
-}
-
-.days-label {
-  font-size: 13px;
-  color: rgba(255,255,255,0.4);
-  letter-spacing: 3px;
-  margin-top: 8px;
-}
-
-.start-date {
-  text-align: center;
-  font-size: 12px;
-  color: rgba(255,255,255,0.3);
-  margin-top: 12px;
-}
+.typing span:nth-child(2){animation-delay:0.2s;}
+.typing span:nth-child(3){animation-delay:0.4s;}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-6px);}}
 </style>
 </head>
 <body>
+<div class="page active" id="chatPage">
+  <div class="glass topbar">
+    <div>
+      <div class="name" id="topName">你的名字</div>
+      <div class="days" id="topDays">在一起 0 天</div>
+    </div>
+    <div class="icon-btn" onclick="showPage('settingPage')" title="设置">⚙️</div>
+  </div>
 
-<div class="glass">
-  <div class="title">我们的小家</div>
-  <div class="subtitle">only us</div>
-</div>
+  <div class="glass chat-area" id="chatArea"></div>
 
-<div class="glass">
-  <div class="days-box">
-    <div class="days-number" id="days">0</div>
-    <div class="days-label">天</div>
-    <div class="start-date" id="startDate"></div>
+  <div class="glass input-area">
+    <div class="input-wrap">
+      <textarea id="inputBox" placeholder="说点什么..." rows="1"
+        onInput="this.style.height='auto';this.style.height=this.scrollHeight+'px'"
+        onKeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"></textarea>
+    </div>
+    <div class="send-btn" onclick="sendMsg()">➤</div>
   </div>
 </div>
 
-<script>
-const startDate = new Date('2026-06-07');
-const today = new Date();
-const diff = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
-document.getElementById('days').textContent = diff;
-document.getElementById('startDate').textContent = '从 2026.06.07 开始';
-</script>
+<div class="page" id="settingPage">
+  <div class="glass topbar">
+    <div class="name">设置</div>
+    <div class="icon-btn" onclick="showPage('chatPage')">✕</div>
+  </div>
 
+  <div class="glass" style="padding:24px;margin-bottom:12px;">
+    <div style="font-size:13px;color:#666;margin-bottom:16px;font-weight:500;">我的信息</div>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:12px;color:#999;margin-bottom:6px;">昵称</div>
+      <input id="setNickname" type="text" placeholder="你叫什么" style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid rgba(0,0,0,0.1);background:rgba(255,255,255,0.6);font-size:14px;outline:none;font-family:inherit;">
+    </div>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:12px;color:#999;margin-bottom:6px;">我的头像URL（可选）</div>
+      <input id="setUserAvatar" type="text" placeholder="粘贴图片链接" style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid rgba(0,0,0,0.1);background:rgba(255,255,255,0.6);font-size:14px;outline:none;font-family:inherit;">
+    </div>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:12px;color:#999;margin-bottom:6px;">在一起的日期</div>
+      <input id="setStartDate" type="date" style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid rgba(0,0,0,0.1);background:rgba(255,255,255,0.6);font-size:14px;outline:none;font-family:inherit;">
+    </div>
+  </div>
+
+  <div class="glass" style="padding:24px;margin-bottom:12px;">
+    <div style="font-size:13px;color:#666;margin-bottom:16px;font-weight:500;">API 设置</div>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:12px;color:#999;margin-bottom:6px;">中转站地址</div>
+      <input id="setApiUrl" type="text" placeholder="https://your-api.com/v1" style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid rgba(0,0,0,0.1);background:rgba(255,255,255,0.6);font-size:14px;outline:none;font-family:inherit;">
+    </div>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:12px;color:#999;margin-bottom:6px;">API Key</div>
+      <input id="setApiKey" type="password" placeholder="sk-..." style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid rgba(0,0,0,0.1);background:rgba(255,255,255,0.6);font-size:14px;outline:none;font-family:inherit;">
+    </div>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:12px;color:#999;margin-bottom:6px;">模型名称</div>
+      <input id="setModel" type="text" placeholder="claude-3-5-sonnet-20241022" style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid rgba(0,0,0,0.1);background:rgba(255,255,255,0.6);font-size:14px;outline:none;font-family:inherit;">
+    </div>
+  </div>
+
+  <div class="glass" style="padding:24px;margin-bottom:12px;">
+    <div style="font-size:13px;color:#666;margin-bottom:16px;font-weight:500;">人设与记忆</div>
+    <div style="margin-bottom:12px;">
+      <div style="font-size:12px;color:#999;margin-bottom:6px;">系统提示词（人设）</div>
+      <textarea id="setSystem" placeholder="在这里写AI的人设..." style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid rgba(0,0,0,0.1);background:rgba(255,255,255,0.6);font-size:14px;outline:none;font-family:inherit;resize:none;height:120px;line-height:1.6;"></textarea>
+    </div>
+    <div>
+      <div style="font-size:12px;color:#999;margin-bottom:6px;">记忆备份（粘贴你的记忆内容）</div>
+      <textarea id="setMemory" placeholder="粘贴记忆内容..." style="width:100%;padding:10px 14px;border-radius:12px;border:1px solid rgba(0,0,0,0.1);background:rgba(255,255,255,0.6);font-size:14px;outline:none;font-family:inherit;resize:none;height:120px;line-height:1.6;"></textarea>
+    </div>
+  </div>
+
+  <div onclick="saveSettings()" style="text-align:center;padding:14px;background:linear-gradient(135deg,rgba(180,160,255,0.5),rgba(140,180,255,0.5));border:1px solid rgba(255,255,255,0.7);border-radius:16px;font-size:15px;color:#444;cursor:pointer;backdrop-filter:blur(10px);margin-bottom:20px;">保存设置</div>
+</div>
 </body>
-</html>
+<script>
+const $ = id => document.getElementById(id);
+let messages = [];
+
+function showPage(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  $(id).classList.add('active');
+  if(id==='settingPage') loadSettingsToForm();
+}
+
+function loadSettingsToForm(){
+  const s = getSettings();
+  $('setNickname').value = s.nickname||'';
+  $('setUserAvatar').value = s.userAvatar||'';
+  $('setStartDate').value = s.startDate||'';
+  $('setApiUrl').value = s.apiUrl||'';
+  $('setApiKey').value = s.apiKey||'';
+  $('setModel').value = s.model||'';
+  $('setSystem').value = s.system||'';
+  $('setMemory').value = s.memory||'';
+}
+
+function getSettings(){
+  try{ return JSON.parse(localStorage.getItem('cfg'))||{}; }
+  catch(e){ return {}; }
+}
+
+function saveSettings(){
+  const cfg = {
+    nickname: $('setNickname').value.trim(),
+    userAvatar: $('setUserAvatar').value.trim(),
+    startDate: $('setStartDate').value,
+    apiUrl: $('setApiUrl').value.trim(),
+    apiKey: $('setApiKey').value.trim(),
+    model: $('setModel').value.trim(),
+    system: $('setSystem').value.trim(),
+    memory: $('setMemory').value.trim()
+  };
+  localStorage.setItem('cfg', JSON.stringify(cfg));
+  updateTopBar();
+  showPage('chatPage');
+}
+
+function updateTopBar(){
+  const s = getSettings();
+  $('topName').textContent = s.nickname || '你的名字';
+  if(s.startDate){
+    const diff = Math.floor((new Date()-new Date(s.startDate))/(1000*60*60*24));
+    $('topDays').textContent = '在一起 '+diff+' 天';
+  }
+}
+
+function claudeAvatar(){
+  return `<div class="avatar claude-avatar"><svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 4C9.373 4 4 9.373 4 16s5.373 12 12 12 12-5.373 12-12S22.627 4 16 4zm0 3c2.21 0 4 2.686 4 6s-1.79 6-4 6-4-2.686-4-6 1.79-6 4-6zm0 14.5c-2.757 0-5.247-1.03-7.1-2.72C9.8 17.5 12.7 16.5 16 16.5s6.2 1 7.1 2.28C21.247 20.47 18.757 21.5 16 21.5z" fill="#E8784D"/></svg></div>`;
+}
+
+function userAvatar(){
+  const s = getSettings();
+  if(s.userAvatar){
+    return `<div class="avatar"><img src="${s.userAvatar}" onerror="this.parentNode.textContent='我'"></div>`;
+  }
+  const nick = s.nickname||'我';
+  return `<div class="avatar" style="font-size:13px;color:#888;">${nick.charAt(0)}</div>`;
+}
+
+function appendMsg(role, text){
+  const area = $('chatArea');
+  const div = document.createElement('div');
+  div.className = 'msg '+(role==='user'?'user':'ai');
+  const avatarHtml = role==='user' ? userAvatar() : claudeAvatar();
+  div.innerHTML = avatarHtml + `<div class="bubble">${text}</div>`;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+  return div;
+}
+
+function appendTyping(){
+  const area = $('chatArea');
+  const div = document.createElement('div');
+  div.className = 'msg ai';
+  div.id = 'typingIndicator';
+  div.innerHTML = claudeAvatar() + `<div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>`;
+  area.appendChild(div);
+  area.scrollTop = area.scrollHeight;
+}
+
+function removeTyping(){
+  const el = $('typingIndicator');
+  if(el) el.remove();
+}
+
+async function sendMsg(){
+  const box = $('inputBox');
+  const text = box.value.trim();
+  if(!text) return;
+  const s = getSettings();
+  if(!s.apiKey||!s.apiUrl){
+    alert('先去设置里填API地址和Key');
+    return;
+  }
+  box.value='';
+  box.style.height='auto';
+  appendMsg('user', text);
+  messages.push({role:'user', content:text});
+
+  let systemPrompt = s.system||'';
+  if(s.memory) systemPrompt += '\n\n以下是关于用户的记忆信息：\n'+s.memory;
+
+  appendTyping();
+
+  try{
+    const res = await fetch(s.apiUrl+'/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': s.apiKey,
+        'anthropic-version':'2023-06-01'
+      },
+      body: JSON.stringify({
+        model: s.model||'claude-3-5-sonnet-20241022',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages: messages
+      })
+    });
+    const data = await res.json();
+    removeTyping();
+    const reply = data.content?.[0]?.text || '出错了，没收到回复';
+    appendMsg('ai', reply);
+    messages.push({role:'assistant', content:reply});
+  } catch(e){
+    removeTyping();
+    appendMsg('ai','网络出错了，再试一次');
+  }
+}
+
+updateTopBar();
+</script>
