@@ -615,4 +615,38 @@ body.export-mode.msg-check {
   width: 0;
   height: 0;
 }
+/* ===== 外观补丁：液态玻璃 + 缩小 ===== */.msg-avatar {
+  width: 30px;
+  height: 30px;
+}.msg-bubble {
+  background: rgba(255, 255, 255, 0.38);
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.05);
+  padding: 8px 12px;
+  border-radius: 14px;
+  font-size: var(--msg-fs, 14px);
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+  color: #262626;
+}.msg-row.user.msg-bubble {
+  background: rgba(255, 255, 255, 0.26);
+}.msg-meta {
+  font-size: 10px;
+}.msg-meta.msg-name {
+  font-size: 11px;
+}.msg-footer {
+  font-size: 9px;
+}.msg-body {
+  max-width: 82%;
+}
+
+#topbar-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-left: 2px;
+}.session-item {
+  padding: 12px;
+}
 
