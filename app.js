@@ -983,3 +983,85 @@ async function init() {
 }
 
 init();
+/* ===== 功能补丁 ===== */
+
+/* 聊天字体大小 */
+function applyFontSize() {
+  const fs = state.settings.fontSize || 14;
+  document.documentElement.style.setProperty("--msg-fs", fs + "px");
+}
+
+/* 会话整行可点，覆盖旧版 */
+function renderSidebar() {
+  const list = $("#session-list");
+  const r = curRole();
+  list.innerHTML = "";
+  r.sessions.forEach(s => {
+    const div = document.createElement("div");
+    div.className = "session-item" + (s.id === r.currentSessionId? " active" : "");
+    div.innerHTML = `<span class="session-name">${esc(s.name)}</span><span class="session-more">⋯</span>`;
+    div.onclick = () => {
+      r.currentSessionId = s.id;
+      saveState();
+      renderAll();
+      closeSidebar();
+    };
+    div.querySelector(".session-more").onclick = (e) => {
+      e.stopPropagation();
+      showActions([
+        { label: "重命名", fn: () => inputDialog("重命名会话", s.name, v => {
+            if (v.trim()) { s.name = v.trim(); saveState(); renderSidebar(); }
+          }) },
+        { label: "删除", danger: true, fn: () => confirmDialog("删除这个会话？", () => {
+            r.sessions = r.sessions.filter(x => x.id!== s.id);
+            if (!r.sessions.length) r.sessions.push({ id: uid(), name: "新对话", messages: [] });
+            if (r.currentSessionId === s.id) r.currentSessionId = r.sessions[0].id;
+            saveState();
+            renderAll();
+          }) }
+      ], e.clientX, e.clientY);
+    };
+    list.appendChild(div);
+  });
+  $("#topbar-title").textContent = curSession().name;
+  $("#current-role-name").textContent = r.name;
+  avatarSrc("ai").then(src => { $("#current-role-avatar").src = src; });
+}
+
+/* 延迟执行，等主程序绑定完再打补丁 */
+setTimeout(function () {
+  if (!state.settings.fontSize) state.settings.fontSize = 14;
+  applyFontSize();
+
+  /* 设置面板注入：字体大小输入框 */
+  const ctxRow = document.getElementById("set-context").closest(".form-row");
+  ctxRow.insertAdjacentHTML("afterend",
+    '<div class="form-row"><label>聊天字体大小 px</label><input type="number" id="set-fontsize" min="10" max="24"></div>');
+
+  /* 设置面板注入：移除背景图按钮 */
+  const bgInput = document.getElementById("upload-bg");
+  bgInput.insertAdjacentHTML("afterend",
+    '<button class="btn secondary" id="remove-bg-btn" style="margin-top:8px">移除背景图</button>');
+  document.getElementById("remove-bg-btn").onclick = async () => {
+    await delImg(curRole().id + "_bg");
+    applyBg();
+    toast("背景已移除");
+  };
+
+  /* 保存时一并存字体大小 */
+  document.getElementById("save-settings-btn").onclick = () => {
+    state.settings.fontSize = parseInt(document.getElementById("set-fontsize").value) || 14;
+    saveSettingsForm();
+    applyFontSize();
+  };
+
+  /* 打开设置时回填字体大小 */
+  function openWithFs() {
+    openSettings();
+    document.getElementById("set-fontsize").value = state.settings.fontSize;
+  }
+  document.getElementById("settings-btn").onclick = openWithFs;
+  document.getElementById("sidebar-role").onclick = openWithFs;
+
+  renderSidebar();
+}, 600);
