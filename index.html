@@ -336,7 +336,7 @@ async function sendMsg(){
   appendTyping();
 
   try{
-    const res = await fetch(s.apiUrl+'/messages',{
+   const res = await fetch(s.apiUrl+'/messages',{
       method:'POST',
       headers:{
         'Content-Type':'application/json',
@@ -357,7 +357,7 @@ async function sendMsg(){
     messages.push({role:'assistant', content:reply});
   } catch(e){
     removeTyping();
-    appendMsg('ai','网络出错了，再试一次');
+    appendMsg('ai','网络出错了，再试一次'); 
   }
 }
 
