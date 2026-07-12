@@ -423,20 +423,15 @@ function buildMessages(uptoId) {
   const r = curRole();
   const s = curSession();
   const msgs = [];
+  const NL = String.fromCharCode(10);
 
-  /* system：人设 + 勾选的记忆 */
   let sys = r.systemPrompt || "";
   const mems = r.memories.filter(m => m.checked).map(m => m.text);
   if (mems.length) {
-    sys += "
-
-[记忆]
-" + mems.map((t, i) => (i + 1) + ". " + t).join("
-");
+    sys += NL + NL + "[记忆]" + NL + mems.map((t, i) => (i + 1) + ". " + t).join(NL);
   }
   if (sys.trim()) msgs.push({ role: "system", content: sys });
 
-  /* 历史消息，截取到指定条数 */
   let history = s.messages;
   if (uptoId) {
     const idx = history.findIndex(m => m.id === uptoId);
@@ -452,6 +447,7 @@ function buildMessages(uptoId) {
   });
   return msgs;
 }
+
 
 /* ---------- 流式请求 ---------- */
 async function streamChat(messages, onDelta) {
