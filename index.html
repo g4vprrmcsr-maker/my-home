@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我们的小家</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  font-family: 'PingFang SC', sans-serif;
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+.glass {
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 24px;
+  padding: 30px;
+  width: 100%;
+  max-width: 500px;
+  margin: 20px 0;
+}
+
+.title {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 300;
+  letter-spacing: 4px;
+  margin-bottom: 8px;
+  color: rgba(255,255,255,0.9);
+}
+
+.subtitle {
+  text-align: center;
+  font-size: 13px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 2px;
+}
+
+.days-box {
+  text-align: center;
+  margin: 10px 0;
+}
+
+.days-number {
+  font-size: 72px;
+  font-weight: 100;
+  color: #a8d8ea;
+  line-height: 1;
+}
+
+.days-label {
+  font-size: 13px;
+  color: rgba(255,255,255,0.4);
+  letter-spacing: 3px;
+  margin-top: 8px;
+}
+
+.start-date {
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255,255,255,0.3);
+  margin-top: 12px;
+}
+</style>
+</head>
+<body>
+
+<div class="glass">
+  <div class="title">我们的小家</div>
+  <div class="subtitle">only us</div>
+</div>
+
+<div class="glass">
+  <div class="days-box">
+    <div class="days-number" id="days">0</div>
+    <div class="days-label">天</div>
+    <div class="start-date" id="startDate"></div>
+  </div>
+</div>
+
+<script>
+const startDate = new Date('2024-01-01');
+const today = new Date();
+const diff = Math.floor((today - startDate) / (1000 * 60 * 60 * 24));
+document.getElementById('days').textContent = diff;
+document.getElementById('startDate').textContent = '从 2024.01.01 开始';
+</script>
+
+</body>
+</html>
