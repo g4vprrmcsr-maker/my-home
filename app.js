@@ -896,18 +896,15 @@ function toggleExportMode() {
 function doExportTxt() {
   const s = curSession();
   const r = curRole();
+  const NL = String.fromCharCode(10);
   const ids = [...document.querySelectorAll(".msg-check:checked")].map(c => c.dataset.id);
-  const msgs = ids.length? s.messages.filter(m => ids.includes(m.id))
-    : s.messages;
+  const msgs = ids.length? s.messages.filter(m => ids.includes(m.id)) : s.messages;
   if (!msgs.length) { toast("没有可导出的消息"); return; }
   const lines = msgs.map(m => {
     const name = m.role === "user"? r.userName : r.aiName;
-    return `[${fmtTime(m.time)}] ${name}：
-${msgText(m)}
-`;
+    return "[" + fmtTime(m.time) + "] " + name + "：" + NL + msgText(m) + NL;
   });
-  const blob = new Blob([lines.join("
-")], { type: "text/plain" });
+  const blob = new Blob([lines.join(NL)], { type: "text/plain" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = s.name + ".txt";
@@ -915,6 +912,7 @@ ${msgText(m)}
   toggleExportMode();
   toast("已导出TXT");
 }
+
 /* ---------- 整体刷新 ---------- */
 async function renderAll() {
   renderSidebar();
