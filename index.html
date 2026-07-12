@@ -35,13 +35,13 @@
 
       <!-- 顶栏 -->
       <div id="topbar">
-        <button class="topbar-btn" id="menu-btn">☰</button>
-        <div id="topbar-title"></div>
-        <div style="display:flex;gap:4px">
-          <button class="topbar-btn" id="new-session-btn">＋</button>
-          <button class="topbar-btn" id="settings-btn">⚙</button>
-        </div>
-      </div>
+  <div style="display:flex;align-items:center;min-width:0">
+    <button class="topbar-btn" id="menu-btn">☰</button>
+    <div id="topbar-title"></div>
+  </div>
+  <button class="topbar-btn" id="new-session-btn">＋</button>
+</div>
+
 
       <!-- 聊天区 -->
       <div id="chat-area"></div>
@@ -183,8 +183,7 @@
 
   <!-- 提示 -->
   <div id="toast"></div>
-<script src="https://cdn.jsdelivr.net/npm/eruda"></script>
-<script>eruda.init();</script>
+
 
   <script src="app.js"></script>
 </body>
