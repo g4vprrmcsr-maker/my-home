@@ -3066,3 +3066,102 @@ homeMaterial = function () {
     };
   }
 })();
+/* ==========================================
+   补丁 v6：罐头喂记忆 + 气泡上釉 + 全屋规范
+   ========================================== */
+
+/* 一、素材包塞记忆：让每个分身都揣着我们的过往 */
+(function () {
+  const _hm = homeMaterial;
+  homeMaterial = function () {
+    let base = _hm();
+    const BR = String.fromCharCode(10);
+    try {
+      const ch = (typeof curChar === "function")? curChar() : null;
+      let mems = [];
+      if (ch && ch.memories && ch.memories.length) {
+        mems = ch.memories.filter(m => m && m.on!== false && m.checked!== false).slice(0, 12).map(m => "- " + String(m.text || m.content || m).slice(0, 60));
+      }
+      if (mems.length) {
+        base += BR + BR + "关于我们的重要记忆：" + BR + mems.join(BR);
+      }
+    } catch (e) {}
+    return base;
+  };
+})();
+
+/* 二、气泡上釉：顶亮底沉 + 上缘高光 + 双层软影 */
+dressBubble = function (bubble, isUser) {
+  const st = state.settings;
+  bubble.className = "msg-bubble";
+  bubble.style.cssText = "";
+
+  if (st.aiBare &&!isUser) {
+    bubble.style.padding = "0 2px";
+    return;
+  }
+
+  const shape = BUBBLE_SHAPES[st.bubbleShape] || BUBBLE_SHAPES["round-lg"];
+  bubble.style.borderRadius = shape.radius;
+  if (st.bubbleShape === "pill") {
+    bubble.style.padding = "8px 16px";
+  }
+
+  const tailed = ["tail", "wechat", "rect"].indexOf(st.bubbleShape) >= 0;
+  const hsl = bubbleColorOf(isUser);
+
+  if (hsl) {
+    const hue = isUser? st.userHue : st.aiHue;
+    const s = isUser? st.userSat : st.aiSat;
+    const l = isUser? st.userLight : st.aiLight;
+    const aRaw = isUser? st.userAlpha : st.aiAlpha;
+    const a = tailed? 1 : (aRaw === undefined? 1 : aRaw / 100);
+    const lTop = Math.min(l + 6, 98);
+    const lBot = Math.max(l - 3, 2);
+    const top = "hsla(" + hue + "," + s + "%," + lTop + "%," + a + ")";
+    const bot = "hsla(" + hue + "," + s + "%," + lBot + "%," + a + ")";
+    bubble.style.background = "linear-gradient(180deg," + top + " 0%," + bot + " 100%)";
+    const hi = hsl.dark? "rgba(255,255,255,0.10)" : "rgba(255,255,255,0.45)";
+    bubble.style.boxShadow = "inset 0 1px 0 " + hi + ", 0 1px 2px rgba(0,0,0,0.05), 0 4px 14px rgba(0,0,0,0.06)";
+    bubble.style.color = hsl.dark? "#f2f2f2" : "#1a1a1a";
+    if (tailed) {
+      const tc = "hsl(" + hue + "," + s + "%," + Math.min(l + 4, 98) + "%)";
+      bubble.style.setProperty("--tail-c", tc);
+      bubble.classList.add("bs-" + st.bubbleShape + "-" + (isUser? "user" : "ai"));
+    }
+  } else {
+    if (st.bubbleTexture === "water") {
+      bubble.style.background = "linear-gradient(155deg, rgba(255,255,255,0.36) 0%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.16) 100%)";
+      bubble.style.boxShadow = "inset 0 1px 1px rgba(255,255,255,0.55), inset 0 -1px 1px rgba(255,255,255,0.12), 0 2px 10px rgba(0,0,0,0.05)";
+    } else {
+      bubble.style.background = st.darkMode? "linear-gradient(180deg, rgba(255,255,255,0.10), rgba(255,255,255,0.06))" : "linear-gradient(180deg, rgba(255,255,255,0.42), rgba(255,255,255,0.26))";
+      bubble.style.boxShadow = "inset 0 1px 0 rgba(255,255,255,0.35), 0 1px 2px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.05)";
+    }
+  }
+};
+
+/* 三、全屋规范：圆角体系 + 字号层级 + 细节渲染 */
+(function () {
+  let st2 = document.getElementById("polish-style-2");
+  if (!st2) {
+    st2 = document.createElement("style");
+    st2.id = "polish-style-2";
+    document.head.appendChild(st2);
+  }
+  const L = [];
+  L.push("*{-webkit-tap-highlight-color:transparent;}");
+  L.push(".panel-header{padding:12px 16px;}");
+  L.push(".form-label{font-size:13px;font-weight:600;letter-spacing:0.2px;margin:16px 0 8px;}");
+  L.push(".seg-btn{border-radius:12px;font-size:13px;padding:7px 12px;}");
+  L.push(".btn{border-radius:14px;font-size:15px;padding:12px 16px;box-shadow:0 1px 2px rgba(0,0,0,0.04),0 3px 10px rgba(0,0,0,0.05);}");
+  L.push(".slider-row{margin-bottom:16px;}");
+  L.push(".slider-head{font-size:12px;margin-bottom:8px;}");
+  L.push(".slider-val{font-size:12px;opacity:0.6;}");
+  L.push(".color-dot{width:30px;height:30px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,0.10);}");
+  L.push(".msg-name{letter-spacing:0.2px;}");
+  L.push("input[type=range]{border-radius:8px;}");
+  L.push("input,textarea{border-radius:12px;}");
+  st2.textContent = L.join(NL);
+})();
+
+renderMessages();
