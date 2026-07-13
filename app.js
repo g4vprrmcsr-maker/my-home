@@ -1291,4 +1291,37 @@ function showActions(items, x, y) {
     document.addEventListener("click", menu._closer, true);
   }, 80);
 }
+/* ===== 修复补丁 v2.2：主题直接上手焊 ===== */
+function applyBubbleClasses() {
+  const bare = state.settings.bubbleMode === "none";
+  document.querySelectorAll(".msg-row.ai").forEach(row => {
+    const b = row.querySelector(".msg-bubble");
+    if (b) b.classList.toggle("ai-bare", bare);
+  });
+}
+
+const _origRenderMessages = renderMessages;
+renderMessages = async function () {
+  await _origRenderMessages();
+  applyBubbleClasses();
+};
+
+const _origApplyTheme = applyTheme;
+applyTheme = function () {
+  _origApplyTheme();
+  const sb = document.getElementById("sidebar");
+  if (state.settings.theme === "glass") {
+    const a = (state.settings.sidebarAlpha || 72) / 100;
+    sb.style.background = "rgba(255,255,255," + a + ")";
+    sb.style.backdropFilter = "blur(24px) saturate(1.6)";
+    sb.style.webkitBackdropFilter = "blur(24px) saturate(1.6)";
+  } else {
+    sb.style.background = "";
+    sb.style.backdropFilter = "";
+    sb.style.webkitBackdropFilter = "";
+  }
+  applyBubbleClasses();
+};
+
+applyTheme();
 
