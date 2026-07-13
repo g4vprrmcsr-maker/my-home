@@ -1946,4 +1946,139 @@ buildThemePanel = function () {
 buildThemePanel();
 applyLayout();
 renderMessages();
+/* ==========================================
+   补丁 v3.2：修抢跑 + 色块回归 + 尾巴融合
+   ========================================== */
+
+/* 色块表：黑白灰蓝粉绿，hue用特殊值编码 */
+const QUICK_COLORS = [
+  { name: "白", h: 0, s: 0, l: 96, a: 92 },
+  { name: "灰", h: 0, s: 0, l: 78, a: 90 },
+  { name: "黑", h: 0, s: 0, l: 18, a: 88 },
+  { name: "天蓝", h: 205, s: 75, l: 82, a: 90 },
+  { name: "粉", h: 340, s: 70, l: 86, a: 90 },
+  { name: "微信绿", h: 100, s: 65, l: 72, a: 92 }
+];
+
+/* 尾巴融合：藏进气泡身体里，交界处让本体压住 */
+(function () {
+  const el2 = document.getElementById("dyn-style");
+  const L = el2.textContent.split(NL).filter(x => x.indexOf("bs-wechat") < 0);
+  L.push(".bs-wechat-user::after{content:'';position:absolute;right:-3px;top:14px;width:8px;height:8px;background:var(--tail-c);transform:rotate(45deg);border-radius:1px;z-index:-1;}");
+  L.push(".bs-wechat-ai::after{content:'';position:absolute;left:-3px;top:14px;width:8px;height:8px;background:var(--tail-c);transform:rotate(45deg);border-radius:1px;z-index:-1;}");
+  el2.textContent = L.join(NL);
+})();
+
+/* 重建颜色选择：色块为主，拉条为辅 */
+function mkColorArea(parent, label, hueKey, satKey, lightKey, alphaKey) {
+  parent.appendChild(el("label", "form-label", label));
+
+  const dots = el("div", "color-dots");
+  const glassDot = el("div", "color-dot");
+  glassDot.style.background = "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(180,180,180,0.3))";
+  glassDot.onclick = () => {
+    state.settings[hueKey] = -1;
+    saveState();
+    renderMessages();
+    refreshDots();
+    slBox.style.display = "none";
+  };
+  dots.appendChild(glassDot);
+
+  QUICK_COLORS.forEach(c => {
+    const d = el("div", "color-dot");
+    d.style.background = "hsla(" + c.h + "," + c.s + "%," + c.l + "%,1)";
+    d._c = c;
+    d.onclick = () => {
+      state.settings[hueKey] = c.h;
+      state.settings[satKey] = c.s;
+      state.settings[lightKey] = c.l;
+      state.settings[alphaKey] = c.a;
+      saveState();
+      renderMessages();
+      refreshDots();
+      buildSl();
+      slBox.style.display = "block";
+    };
+    dots.appendChild(d);
+  });
+  parent.appendChild(dots);
+
+  const moreBtn = el("button", "seg-btn", "微调 ▾");
+  moreBtn.style.marginBottom = "10px";
+  parent.appendChild(moreBtn);
+
+  const slBox = el("div", "");
+  slBox.style.display = "none";
+  parent.appendChild(slBox);
+
+  moreBtn.onclick = () => {
+    if (slBox.style.display === "none") {
+      if (state.settings[hueKey] < 0) state.settings[hueKey] = 205;
+      buildSl();
+      slBox.style.display = "block";
+    } else {
+      slBox.style.display = "none";
+    }
+  };
+
+  function refreshDots() {
+    const st = state.settings;
+    glassDot.classList.toggle("on", st[hueKey] < 0);
+    Array.from(dots.children).forEach(d => {
+      if (!d._c) return;
+      const c = d._c;
+      d.classList.toggle("on", st[hueKey] === c.h && st[satKey] === c.s && st[lightKey] === c.l);
+    });
+  }
+
+  function buildSl() {
+    slBox.innerHTML = "";
+    const hueRow = el("div", "slider-row");
+    const head = el("div", "slider-head");
+    head.appendChild(el("span", "", "色相"));
+    const val = el("span", "slider-val", state.settings[hueKey]);
+    head.appendChild(val);
+    const sl = document.createElement("input");
+    sl.type = "range";
+    sl.min = 0;
+    sl.max = 360;
+    sl.step = 1;
+    sl.value = Math.max(0, state.settings[hueKey]);
+    sl.style.background = "linear-gradient(to right, hsl(0,80%,65%), hsl(60,80%,65%), hsl(120,80%,65%), hsl(180,80%,65%), hsl(240,80%,65%), hsl(300,80%,65%), hsl(360,80%,65%))";
+    sl.addEventListener("input", () => {
+      state.settings[hueKey] = Number(sl.value);
+      val.textContent = sl.value;
+      saveState();
+      renderMessages();
+      refreshDots();
+    });
+    hueRow.appendChild(head);
+    hueRow.appendChild(sl);
+    slBox.appendChild(hueRow);
+    mkSlider(slBox, "鲜艳度", 0, 100, 1, satKey, "%", () => { renderMessages(); refreshDots(); });
+    mkSlider(slBox, "深浅", 10, 97, 1, lightKey, "%", () => { renderMessages(); refreshDots(); });
+    mkSlider(slBox, "不透明度", 15, 100, 1, alphaKey, "%", () => renderMessages());
+  }
+
+  refreshDots();
+}
+
+/* 用色块区替换掉拉条区，重建主题页 */
+mkHueGroup = mkColorArea;
+buildThemePanel();
+
+/* 修抢跑：等仓库开门再上妆 */
+(function () {
+  let tries = 0;
+  const t = setInterval(() => {
+    tries++;
+    if (DB) {
+      clearInterval(t);
+      renderMessages();
+    } else if (tries > 50) {
+      clearInterval(t);
+    }
+  }, 100);
+})();
 
