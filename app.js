@@ -3165,3 +3165,86 @@ dressBubble = function (bubble, isUser) {
 })();
 
 renderMessages();
+/* ==========================================
+   补丁 v7：奶釉配方 + 8点间距系统
+   ========================================== */
+
+/* 气泡重做：掺奶 + 同色光晕 + 呼吸感 */
+dressBubble = function (bubble, isUser) {
+  const st = state.settings;
+  bubble.className = "msg-bubble";
+  bubble.style.cssText = "";
+
+  if (st.aiBare &&!isUser) {
+    bubble.style.padding = "0 2px";
+    return;
+  }
+
+  const shape = BUBBLE_SHAPES[st.bubbleShape] || BUBBLE_SHAPES["round-lg"];
+  bubble.style.borderRadius = shape.radius;
+  bubble.style.padding = "10px 14px";
+  bubble.style.lineHeight = "1.68";
+  if (st.bubbleShape === "pill") {
+    bubble.style.padding = "9px 16px";
+  }
+
+  const tailed = ["tail", "wechat", "rect"].indexOf(st.bubbleShape) >= 0;
+  const hsl = bubbleColorOf(isUser);
+
+  if (hsl) {
+    const hue = isUser? st.userHue : st.aiHue;
+    const s = isUser? st.userSat : st.aiSat;
+    const l = isUser? st.userLight : st.aiLight;
+    const aRaw = isUser? st.userAlpha : st.aiAlpha;
+    const a = tailed? 1 : (aRaw === undefined? 1 : aRaw / 100);
+
+    /* 掺奶：鲜艳度打88折，深浅微提 */
+    const s2 = Math.round(s * 0.88);
+    const l2 = Math.min(l + 2, 97);
+    const bg = "hsla(" + hue + "," + s2 + "%," + l2 + "%," + a + ")";
+    bubble.style.background = bg;
+
+    const dark = hsl.dark;
+    /* 同色光晕：影子不是黑的，是这个颜色自己的深色 */
+    const glow = "hsla(" + hue + "," + Math.max(s2, 25) + "%," + Math.max(l2 - 30, 12) + "%,0.20)";
+    const rim = dark? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.55)";
+    bubble.style.boxShadow = "inset 0 0 0 1px " + rim + ", 0 2px 6px " + glow + ", 0 7px 20px " + glow;
+    bubble.style.color = dark? "#f4f2f0" : "#212121";
+
+    if (tailed) {
+      bubble.style.setProperty("--tail-c", "hsl(" + hue + "," + s2 + "%," + l2 + "%)");
+      bubble.classList.add("bs-" + st.bubbleShape + "-" + (isUser? "user" : "ai"));
+    }
+  } else {
+    if (st.bubbleTexture === "water") {
+      bubble.style.background = "linear-gradient(155deg, rgba(255,255,255,0.36) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.16) 100%)";
+      bubble.style.boxShadow = "inset 0 0 0 1px rgba(255,255,255,0.35), inset 0 1px 1px rgba(255,255,255,0.5), 0 4px 16px rgba(160,140,130,0.10)";
+    } else {
+      bubble.style.background = st.darkMode? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.34)";
+      bubble.style.boxShadow = "inset 0 0 0 1px rgba(255,255,255,0.30), 0 4px 14px rgba(160,140,130,0.09)";
+    }
+  }
+};
+
+/* 8点间距系统：全屋节奏统一 */
+(function () {
+  let st3 = document.getElementById("polish-style-3");
+  if (!st3) {
+    st3 = document.createElement("style");
+    st3.id = "polish-style-3";
+    document.head.appendChild(st3);
+  }
+  const L = [];
+  L.push(".msg-row{margin-bottom:16px;}");
+  L.push(".msg-name{margin-bottom:4px;}");
+  L.push(".panel-header{padding:12px 16px;}");
+  L.push(".form-group{margin-bottom:24px;}");
+  L.push(".form-label{margin:16px 0 8px;}");
+  L.push(".seg-group{gap:8px;}");
+  L.push(".btn{margin-bottom:8px;}");
+  L.push(".slider-row{margin-bottom:16px;}");
+  L.push("#input-bar{padding:8px 12px;gap:8px;}");
+  st3.textContent = L.join(NL);
+})();
+
+renderMessages();
