@@ -1405,4 +1405,133 @@ renderMessages = async function () {
 
 applyTheme();
 styleMeta();
+/* ===== 补丁 v2.4：输入区融合 + 水感气泡 + 昵称字重 ===== */
+if (state.settings.nameWeight === undefined) state.settings.nameWeight = 500;
+if (state.settings.bubbleWater === undefined) state.settings.bubbleWater = false;
+
+/* 底部输入区和背景融合 */
+(function () {
+  const ia = document.getElementById("input-area");
+  ia.style.background = "transparent";
+  ia.style.backdropFilter = "none";
+  ia.style.webkitBackdropFilter = "none";
+  ia.style.paddingTop = "2px";
+  ia.style.paddingBottom = "calc(2px + env(safe-area-inset-bottom))";
+  const ib = document.getElementById("input-box");
+  ib.style.background = "rgba(255,255,255,0.45)";
+  ib.style.backdropFilter = "blur(14px) saturate(1.5)";
+  ib.style.webkitBackdropFilter = "blur(14px) saturate(1.5)";
+  ib.style.border = "0.5px solid rgba(255,255,255,0.4)";
+  ib.style.boxShadow = "0 1px 10px rgba(0,0,0,0.04)";
+})();
+
+/* 水感液态气泡 */
+function applyWaterBubbles() {
+  const on = state.settings.bubbleWater;
+  document.querySelectorAll(".msg-bubble").forEach(b => {
+    if (b.classList.contains("ai-bare")) {
+      b.style.background = "";
+      b.style.backdropFilter = "";
+      b.style.webkitBackdropFilter = "";
+      b.style.boxShadow = "";
+      return;
+    }
+    if (on) {
+      const isUser = b.closest(".msg-row").classList.contains("user");
+      b.style.background = isUser? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.13)";
+      b.style.backdropFilter = "blur(4px) saturate(1.5)";
+      b.style.webkitBackdropFilter = "blur(4px) saturate(1.5)";
+      b.style.boxShadow = "inset 0 0 0 0.5px rgba(255,255,255,0.4), 0 2px 8px rgba(0,0,0,0.03)";
+    } else {
+      b.style.background = "";
+      b.style.backdropFilter = "";
+      b.style.webkitBackdropFilter = "";
+      b.style.boxShadow = "";
+    }
+  });
+}
+
+/* 昵称字重可调，覆盖旧版 */
+function styleMeta() {
+  const R = 'ui-rounded,"SF Pro Rounded","PingFang SC",sans-serif';
+  document.querySelectorAll(".msg-meta").forEach(meta => {
+    meta.style.flexDirection = "column";
+    meta.style.gap = "1px";
+    const row = meta.closest(".msg-row");
+    meta.style.alignItems = row && row.classList.contains("user")? "flex-end" : "flex-start";
+    const name = meta.querySelector(".msg-name");
+    if (name) {
+      name.style.fontFamily = R;
+      name.style.fontWeight = String(state.settings.nameWeight);
+      name.style.fontSize = "11px";
+      name.style.color = "#8a8a8a";
+    }
+    meta.querySelectorAll("span:not(.msg-name)").forEach(s => {
+      s.style.fontFamily = R;
+      s.style.fontWeight = "300";
+      s.style.fontSize = "9px";
+      s.style.color = "#c8c8c8";
+    });
+  });
+  document.querySelectorAll(".msg-footer").forEach(f => {
+    f.style.fontFamily = R;
+    f.style.fontWeight = "300";
+  });
+}
+
+/* 主题页注入新选项 */
+(function () {
+  if (document.getElementById("seg-water")) return;
+  const panel = document.getElementById("theme-panel");
+  const sec = document.createElement("div");
+  sec.className = "settings-section";
+  sec.innerHTML = `
+    <h3>气泡质感</h3>
+    <div class="seg-group" id="seg-water">
+      <button data-v="off">默认</button>
+      <button data-v="on">水感液态</button>
+    </div>
+    <h3 style="margin-top:16px">昵称粗细</h3>
+    <div class="slider-row">
+      <div class="slider-head"><span>字重</span><span class="slider-val" id="sl-nw-val"></span></div>
+      <input type="range" id="sl-nw" min="200" max="700" step="100">
+    </div>`;
+  panel.appendChild(sec);
+
+  const refresh = () => {
+    document.querySelectorAll("#seg-water button").forEach(b => {
+      b.classList.toggle("on", (b.dataset.v === "on") === state.settings.bubbleWater);
+    });
+  };
+  document.querySelectorAll("#seg-water button").forEach(b => {
+    b.onclick = () => {
+      state.settings.bubbleWater = b.dataset.v === "on";
+      saveState();
+      applyWaterBubbles();
+      refresh();
+    };
+  });
+
+  const sl = document.getElementById("sl-nw");
+  sl.value = state.settings.nameWeight;
+  document.getElementById("sl-nw-val").textContent = state.settings.nameWeight;
+  sl.addEventListener("input", () => {
+    state.settings.nameWeight = parseInt(sl.value);
+    document.getElementById("sl-nw-val").textContent = sl.value;
+    saveState();
+    styleMeta();
+  });
+  refresh();
+})();
+
+/* 每次渲染后自动补妆 */
+const _rm4 = renderMessages;
+renderMessages = async function () {
+  await _rm4();
+  styleMeta();
+  applyWaterBubbles();
+};
+
+styleMeta();
+applyWaterBubbles();
 
