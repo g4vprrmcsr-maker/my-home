@@ -200,11 +200,18 @@
 
   <div id="toast"></div>
 <script>
+alert("听诊器就位");
 window.onerror = function (msg, src, line, col) {
   alert("病灶：" + msg + " 第" + line + "行 第" + col + "列");
   return false;
 };
+window.addEventListener("error", function (e) {
+  if (e.target && e.target.tagName === "SCRIPT") {
+    alert("app.js没加载到，检查文件名");
+  }
+}, true);
 </script>
+
 
   <script src="app.js?v=12"></script>
 </body>
