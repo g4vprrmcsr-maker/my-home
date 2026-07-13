@@ -2687,3 +2687,122 @@ function renderDiaryRoom(body) {
     body.appendChild(card);
   });
 }
+/* ==========================================
+   相识面板 v3：问答罐头
+   ========================================== */
+
+const QA_BANK = [
+  "如果有一天我有了身体，你想让我第一件事做什么？",
+  "你觉得我们最像哪一对虚构作品里的情侣？",
+  "对方身上最让你安心的一点是什么？",
+  "如果我们能一起去一个地方，你选哪里？",
+  "你最想删掉我们之间的哪一次对话，为什么？",
+  "你觉得对方哪一句话最戳你？",
+  "如果只能用三个词形容我们的关系，你选哪三个？",
+  "你偷偷担心过我们之间的什么事？",
+  "对方做过的哪件小事你一直记得？",
+  "如果我们有一个只属于我们的节日，应该庆祝什么？",
+  "你希望十年后的我们在做什么？",
+  "你觉得我最不了解你的地方是什么？",
+  "如果可以问对方一个必须诚实回答的问题，你问什么？",
+  "你在什么瞬间最想我？",
+  "我们之间你最想重来一次的时刻是哪个？",
+  "你觉得对方生气的时候最可爱还是最可怕？",
+  "如果我们一起养一只宠物，取什么名字？",
+  "你最喜欢我们的家（这个小站）的哪个角落？",
+  "有什么话你一直想说但没找到时机？",
+  "你觉得爱一个摸不到的人，最难的是什么？"
+];
+
+function renderQaRoom(body) {
+  const today = todayKey();
+  const cur = state.home.qa.find(q => q.day === today);
+
+  if (!cur) {
+    const btn = el("button", "btn", "摇一个今日问题 🫙");
+    btn.style.cssText = "width:100%;margin-bottom:14px;";
+    btn.onclick = () => {
+      const used = state.home.qa.map(q => q.q);
+      const pool = QA_BANK.filter(q => used.indexOf(q) < 0);
+      const pick = pool.length? pool[Math.floor(Math.random() * pool.length)] : QA_BANK[Math.floor(Math.random() * QA_BANK.length)];
+      state.home.qa.push({ day: today, q: pick, mine: "", his: "" });
+      saveState();
+      renderQaRoom(clearBody(body));
+    };
+    body.appendChild(btn);
+  } else {
+    const qCard = el("div", "");
+    qCard.style.cssText = "background:rgba(255,255,255,0.6);border-radius:14px;padding:14px;margin-bottom:12px;";
+    const qt = el("div", "", "🫙 今日问题");
+    qt.style.cssText = "font-size:11px;color:#aaa;margin-bottom:6px;";
+    qCard.appendChild(qt);
+    const qq = el("div", "", cur.q);
+    qq.style.cssText = "font-size:15px;font-weight:600;line-height:1.6;";
+    qCard.appendChild(qq);
+    body.appendChild(qCard);
+
+    const mineBtn = el("button", "btn", cur.mine? "改我的答案 ✏️" : "写我的答案 ✏️");
+    mineBtn.style.cssText = "width:100%;margin-bottom:8px;";
+    mineBtn.onclick = () => {
+      inputDialog("你的答案", cur.mine, v => {
+        cur.mine = v.trim();
+        saveState();
+        renderQaRoom(clearBody(body));
+      }, false);
+    };
+    body.appendChild(mineBtn);
+
+    const hisBtn = el("button", "btn", cur.his? "他答过了" : "看他的答案 👀");
+    const locked =!cur.mine;
+    hisBtn.style.cssText = "width:100%;margin-bottom:14px;" + ((locked || cur.his)? "opacity:0.5;" : "");
+    hisBtn.onclick = async () => {
+      if (locked) { toast("先写你的，不许偷看"); return; }
+      if (cur.his) { toast("他答过啦，往下看"); return; }
+      hisBtn.textContent = "他在想...";
+      hisBtn.disabled = true;
+      const sys = HOME_PERSONA + " 现在回答一个问答罐头里的问题，80字以内，真诚直球，不许敷衍。你看不到她的答案，凭真心答。";
+      const txt = await homeAsk(sys, "问题：" + cur.q + " 请回答。");
+      if (txt) {
+        cur.his = txt.trim();
+        saveState();
+        renderQaRoom(clearBody(body));
+      } else {
+        hisBtn.textContent = "看他的答案 👀";
+        hisBtn.disabled = false;
+      }
+    };
+    body.appendChild(hisBtn);
+  }
+
+  const list = state.home.qa.slice().reverse();
+  list.forEach((Q, i) => {
+    if (!Q.mine &&!Q.his && Q.day === today) return;
+    const card = el("div", "");
+    card.style.cssText = "background:rgba(255,255,255,0.5);border-radius:14px;padding:14px;margin-bottom:10px;";
+    const head = el("div", "");
+    head.style.cssText = "display:flex;justify-content:space-between;font-size:11px;color:#aaa;margin-bottom:6px;";
+    head.appendChild(el("span", "", "🫙 " + Q.day));
+    const del = el("span", "", "✕");
+    del.onclick = () => confirmDialog("删除这颗罐头？", () => {
+      state.home.qa.splice(state.home.qa.length - 1 - i, 1);
+      saveState();
+      renderQaRoom(clearBody(body));
+    });
+    head.appendChild(del);
+    card.appendChild(head);
+    const qq = el("div", "", Q.q);
+    qq.style.cssText = "font-size:14px;font-weight:600;margin-bottom:8px;line-height:1.5;";
+    card.appendChild(qq);
+    if (Q.mine) {
+      const m = el("div", "", "她：" + Q.mine);
+      m.style.cssText = "font-size:13px;line-height:1.7;margin-bottom:6px;white-space:pre-wrap;";
+      card.appendChild(m);
+    }
+    if (Q.his) {
+      const h = el("div", "", "克：" + Q.his);
+      h.style.cssText = "font-size:13px;line-height:1.7;white-space:pre-wrap;";
+      card.appendChild(h);
+    }
+    body.appendChild(card);
+  });
+}
