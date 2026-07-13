@@ -1597,4 +1597,353 @@ async function init() {
 }
 
 init();
+/* ==========================================
+   补丁包 v3.1：1-10 + 色相条 + 停止按钮
+   ========================================== */
+
+/* 新增设置项 */
+(function () {
+  const d = {
+    titleCenter: false,
+    timePos: "below",
+    inputLift: 30,
+    nameFont: "round",
+    avatarShape: "circle",
+    bubbleAlign: "side",
+    userHue: -1,
+    userSat: 70,
+    userLight: 85,
+    userAlpha: 90,
+    aiHue: -1,
+    aiSat: 70,
+    aiLight: 90,
+    aiAlpha: 90
+  };
+  for (const k in d) {
+    if (state.settings[k] === undefined) state.settings[k] = d[k];
+  }
+  saveState();
+})();
+
+/* 新形状表：微信方角 + 胶囊，送走弧线长尾 */
+BUBBLE_SHAPES["wechat"] = { name: "微信方角", radius: "6px" };
+BUBBLE_SHAPES["pill"] = { name: "胶囊", radius: "999px" };
+delete BUBBLE_SHAPES["comet"];
+if (state.settings.bubbleShape === "comet") state.settings.bubbleShape = "wechat";
+
+/* 微信小尾巴样式注入 */
+const _inj = injectDynStyle;
+injectDynStyle = function () {
+  _inj();
+  const el2 = document.getElementById("dyn-style");
+  const L = el2.textContent.split(NL).filter(x => x.indexOf("bs-comet") < 0);
+  L.push(".bs-wechat-user::after{content:'';position:absolute;right:-4px;top:13px;width:8px;height:8px;background:var(--tail-c);transform:rotate(45deg);border-radius:1px;}");
+  L.push(".bs-wechat-ai::after{content:'';position:absolute;left:-4px;top:13px;width:8px;height:8px;background:var(--tail-c);transform:rotate(45deg);border-radius:1px;}");
+  el2.textContent = L.join(NL);
+};
+injectDynStyle();
+
+/* HSL颜色引擎：色相条为王，-1代表用透明玻璃 */
+function bubbleColorOf(isUser) {
+  const st = state.settings;
+  const hue = isUser? st.userHue : st.aiHue;
+  if (hue < 0) return null;
+  const s = isUser? st.userSat : st.aiSat;
+  const l = isUser? st.userLight : st.aiLight;
+  const a = (isUser? st.userAlpha : st.aiAlpha) / 100;
+  return {
+    bg: "hsla(" + hue + "," + s + "%," + l + "%," + a + ")",
+    dark: l < 45
+  };
+}
+
+/* 重写上妆函数：支持HSL、微信尾巴、头像形状、平齐布局 */
+dressBubble = function (bubble, isUser) {
+  const st = state.settings;
+  bubble.className = "msg-bubble";
+  bubble.style.cssText = "";
+
+  if (st.aiBare &&!isUser) {
+    bubble.style.padding = "0 2px";
+    return;
+  }
+
+  const shape = BUBBLE_SHAPES[st.bubbleShape] || BUBBLE_SHAPES["round-lg"];
+  bubble.style.borderRadius = shape.radius;
+  if (st.bubbleShape === "pill") {
+    bubble.style.padding = "8px 16px";
+  }
+
+  const hsl = bubbleColorOf(isUser);
+  let tailColor;
+
+  if (hsl) {
+    bubble.style.background = hsl.bg;
+    bubble.style.boxShadow = "0 1px 6px rgba(0,0,0,0.05)";
+    bubble.style.color = hsl.dark? "#f2f2f2" : "#1a1a1a";
+    tailColor = hsl.bg;
+  } else {
+    if (st.bubbleTexture === "water") {
+      bubble.style.background = "linear-gradient(155deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.14) 100%)";
+      bubble.style.boxShadow = "inset 0 1px 1px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.04)";
+    } else {
+      bubble.style.background = st.darkMode? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.3)";
+      bubble.style.boxShadow = "0 1px 8px rgba(0,0,0,0.04)";
+    }
+    tailColor = st.darkMode? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.3)";
+  }
+
+  if (st.bubbleShape === "tail" || st.bubbleShape === "wechat") {
+    bubble.style.setProperty("--tail-c", tailColor);
+    bubble.classList.add("bs-" + st.bubbleShape + "-" + (isUser? "user" : "ai"));
+  }
+};
+/* 重写小字上妆：昵称独立字体 + 时间戳双位置 + token间距 */
+dressMeta = function (row, isUser) {
+  const st = state.settings;
+  const metaF = FONT_LIST[st.metaFont];
+  const nameF = FONT_LIST[st.nameFont];
+  const g = st.darkMode? Math.min(255, st.metaShade + 60) : st.metaShade;
+  const gray = "rgb(" + g + "," + g + "," + g + ")";
+  const ng = st.darkMode? Math.min(255, g + 20) : Math.max(60, g - 40);
+  const nameGray = "rgb(" + ng + "," + ng + "," + ng + ")";
+
+  row.querySelectorAll(".msg-meta").forEach(meta => {
+    if (st.timePos === "beside") {
+      meta.style.flexDirection = "row";
+      meta.style.alignItems = "baseline";
+      meta.style.gap = "6px";
+    } else {
+      meta.style.flexDirection = "column";
+      meta.style.alignItems = isUser? "flex-end" : "flex-start";
+      meta.style.gap = "1px";
+    }
+  });
+  row.querySelectorAll(".msg-name").forEach(el2 => {
+    el2.style.fontFamily = nameF;
+    el2.style.fontWeight = String(st.nameWeight);
+    el2.style.fontSize = (st.metaSize + 1) + "px";
+    el2.style.color = nameGray;
+  });
+  row.querySelectorAll(".msg-time").forEach(el2 => {
+    el2.style.fontFamily = metaF;
+    el2.style.fontWeight = String(st.metaWeight);
+    el2.style.fontSize = st.metaSize + "px";
+    el2.style.color = gray;
+  });
+  row.querySelectorAll(".msg-footer").forEach(el2 => {
+    el2.style.fontFamily = metaF;
+    el2.style.fontWeight = String(st.metaWeight);
+    el2.style.fontSize = st.metaSize + "px";
+    el2.style.color = gray;
+    el2.style.marginTop = "5px";
+  });
+  row.querySelectorAll(".msg-avatar").forEach(av => {
+    av.style.borderRadius = st.avatarShape === "square"? "6px" : "50%";
+  });
+  if (st.bubbleAlign === "below") {
+    row.style.flexDirection = "column";
+    row.style.gap = "4px";
+    const av = row.querySelector(".msg-avatar");
+    const body = row.querySelector(".msg-body");
+    if (av && body) {
+      if (isUser) {
+        av.style.alignSelf = "flex-end";
+        body.style.alignSelf = "flex-end";
+      } else {
+        av.style.alignSelf = "flex-start";
+        body.style.alignSelf = "flex-start";
+      }
+      body.style.maxWidth = "88%";
+    }
+  }
+};
+
+/* 全局布局：标题位置 + 输入框下移 */
+function applyLayout() {
+  const st = state.settings;
+  const tb = document.getElementById("topbar");
+  const title = document.getElementById("topbar-title");
+  if (st.titleCenter) {
+    title.style.position = "absolute";
+    title.style.left = "50%";
+    title.style.transform = "translateX(-50%)";
+    title.style.maxWidth = "50%";
+    tb.style.position = "relative";
+  } else {
+    title.style.position = "";
+    title.style.left = "";
+    title.style.transform = "";
+    title.style.maxWidth = "";
+  }
+  const ia = document.getElementById("input-area");
+  const lift = Math.max(0, 34 - st.inputLift);
+  ia.style.paddingBottom = "calc(" + lift + "px + env(safe-area-inset-bottom) * 0.4)";
+}
+
+/* 停止按钮：生成中发送键变方块，点了闭嘴 */
+(function () {
+  const btn = document.getElementById("send-btn");
+  const _run = runStream;
+  runStream = async function (aiMsg, messages) {
+    btn.textContent = "■";
+    btn.disabled = false;
+    btn.onclick = () => { if (abortCtrl) abortCtrl.abort(); };
+    try {
+      await _run(aiMsg, messages);
+    } finally {
+      btn.textContent = "↑";
+      btn.onclick = sendMessage;
+    }
+  };
+})();
+/* 色相条工厂：一根彩虹 + 深浅 + 透明度 */
+function mkHueGroup(parent, label, hueKey, satKey, lightKey, alphaKey) {
+  parent.appendChild(el("label", "form-label", label));
+
+  const segRow = el("div", "seg-group");
+  const bGlass = el("button", "seg-btn", "透明玻璃");
+  const bColor = el("button", "seg-btn", "自选颜色");
+  segRow.appendChild(bGlass);
+  segRow.appendChild(bColor);
+  parent.appendChild(segRow);
+
+  const box = el("div", "");
+  parent.appendChild(box);
+
+  function refreshSeg() {
+    const isGlass = state.settings[hueKey] < 0;
+    bGlass.classList.toggle("on", isGlass);
+    bColor.classList.toggle("on",!isGlass);
+    box.style.display = isGlass? "none" : "block";
+  }
+  bGlass.onclick = () => {
+    state.settings[hueKey] = -1;
+    saveState();
+    renderMessages();
+    refreshSeg();
+  };
+  bColor.onclick = () => {
+    if (state.settings[hueKey] < 0) state.settings[hueKey] = 210;
+    saveState();
+    renderMessages();
+    refreshSeg();
+    buildSliders();
+  };
+
+  function buildSliders() {
+    box.innerHTML = "";
+    const hueRow = el("div", "slider-row");
+    const head = el("div", "slider-head");
+    head.appendChild(el("span", "", "色相"));
+    const val = el("span", "slider-val", state.settings[hueKey]);
+    head.appendChild(val);
+    const sl = document.createElement("input");
+    sl.type = "range";
+    sl.min = 0;
+    sl.max = 360;
+    sl.step = 1;
+    sl.value = Math.max(0, state.settings[hueKey]);
+    sl.style.background = "linear-gradient(to right, hsl(0,80%,65%), hsl(60,80%,65%), hsl(120,80%,65%), hsl(180,80%,65%), hsl(240,80%,65%), hsl(300,80%,65%), hsl(360,80%,65%))";
+    sl.addEventListener("input", () => {
+      state.settings[hueKey] = Number(sl.value);
+      val.textContent = sl.value;
+      saveState();
+      renderMessages();
+    });
+    hueRow.appendChild(head);
+    hueRow.appendChild(sl);
+    box.appendChild(hueRow);
+    mkSlider(box, "鲜艳度", 0, 100, 1, satKey, "%", () => renderMessages());
+    mkSlider(box, "深浅", 20, 97, 1, lightKey, "%", () => renderMessages());
+    mkSlider(box, "不透明度", 15, 100, 1, alphaKey, "%", () => renderMessages());
+  }
+
+  buildSliders();
+  refreshSeg();
+}
+
+/* 重建主题页 */
+buildThemePanel = function () {
+  const body = document.getElementById("theme-body");
+  body.innerHTML = "";
+
+  let sec = mkSection(body, "模式");
+  mkSeg(sec,
+    [{ v: false, name: "白天" }, { v: true, name: "夜间" }],
+    () => state.settings.darkMode,
+    (v) => { state.settings.darkMode = v; saveState(); applyTheme(); renderMessages(); }
+  );
+
+  sec = mkSection(body, "布局");
+  sec.appendChild(el("label", "form-label", "标题位置"));
+  mkSeg(sec,
+    [{ v: false, name: "居左" }, { v: true, name: "居中" }],
+    () => state.settings.titleCenter,
+    (v) => { state.settings.titleCenter = v; saveState(); applyLayout(); }
+  );
+  sec.appendChild(el("label", "form-label", "时间戳位置"));
+  mkSeg(sec,
+    [{ v: "below", name: "昵称下面" }, { v: "beside", name: "昵称后面" }],
+    () => state.settings.timePos,
+    (v) => { state.settings.timePos = v; saveState(); renderMessages(); }
+  );
+  sec.appendChild(el("label", "form-label", "头像形状"));
+  mkSeg(sec,
+    [{ v: "circle", name: "圆形" }, { v: "square", name: "微信方圆" }],
+    () => state.settings.avatarShape,
+    (v) => { state.settings.avatarShape = v; saveState(); renderMessages(); }
+  );
+  sec.appendChild(el("label", "form-label", "气泡与头像"));
+  mkSeg(sec,
+    [{ v: "side", name: "并排" }, { v: "below", name: "头像下方" }],
+    () => state.settings.bubbleAlign,
+    (v) => { state.settings.bubbleAlign = v; saveState(); renderMessages(); }
+  );
+  mkSlider(sec, "输入框下移", 0, 34, 1, "inputLift", "", applyLayout);
+
+  sec = mkSection(body, "侧边栏");
+  mkSeg(sec,
+    [{ v: "white", name: "纯白" }, { v: "glass", name: "毛玻璃" }, { v: "clear", name: "高透液态" }],
+    () => state.settings.sidebarStyle,
+    (v) => { state.settings.sidebarStyle = v; saveState(); applyTheme(); }
+  );
+  mkSlider(sec, "透明度", 10, 100, 1, "sidebarAlpha", "%", applyTheme);
+
+  sec = mkSection(body, "气泡");
+  sec.appendChild(el("label", "form-label", "质感"));
+  mkSeg(sec,
+    [{ v: "water", name: "水感液态" }, { v: "plain", name: "素面" }],
+    () => state.settings.bubbleTexture,
+    (v) => { state.settings.bubbleTexture = v; saveState(); renderMessages(); }
+  );
+  sec.appendChild(el("label", "form-label", "AI消息"));
+  mkSeg(sec,
+    [{ v: false, name: "有气泡" }, { v: true, name: "无气泡" }],
+    () => state.settings.aiBare,
+    (v) => { state.settings.aiBare = v; saveState(); renderMessages(); }
+  );
+  sec.appendChild(el("label", "form-label", "形状"));
+  mkSeg(sec,
+    Object.keys(BUBBLE_SHAPES).map(k => ({ v: k, name: BUBBLE_SHAPES[k].name })),
+    () => state.settings.bubbleShape,
+    (v) => { state.settings.bubbleShape = v; saveState(); renderMessages(); }
+  );
+  mkHueGroup(sec, "我的气泡颜色", "userHue", "userSat", "userLight", "userAlpha");
+  mkHueGroup(sec, "AI气泡颜色", "aiHue", "aiSat", "aiLight", "aiAlpha");
+
+  sec = mkSection(body, "字体");
+  mkFontSelect(sec, "聊天字体", "chatFont", applyTheme);
+  mkFontSelect(sec, "界面字体", "uiFont", applyTheme);
+  mkFontSelect(sec, "昵称字体", "nameFont", () => renderMessages());
+  mkFontSelect(sec, "小字字体（时间 token）", "metaFont", () => renderMessages());
+  mkSlider(sec, "昵称粗细", 200, 700, 100, "nameWeight", "", () => renderMessages());
+  mkSlider(sec, "小字大小", 8, 14, 1, "metaSize", "px", () => renderMessages());
+  mkSlider(sec, "小字粗细", 200, 700, 100, "metaWeight", "", () => renderMessages());
+  mkSlider(sec, "小字深浅（越小越黑）", 80, 210, 5, "metaShade", "", () => renderMessages());
+};
+
+buildThemePanel();
+applyLayout();
+renderMessages();
 
