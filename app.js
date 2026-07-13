@@ -2256,4 +2256,187 @@ dressBubble = function (bubble, isUser) {
 
 buildThemePanel();
 renderMessages();
+/* ==========================================
+   相识面板 v1：地基 + 心情
+   ========================================== */
+
+/* 数据仓库：住在角色数据外面，全局一份 */
+(function () {
+  if (!state.home) {
+    state.home = {
+      moods: [],
+      letters: [],
+      diaries: [],
+      qa: [],
+      digestOn: false,
+      daysFont: "song",
+      lastLetterDay: "",
+      lastDiaryDay: ""
+    };
+    saveState();
+  }
+  const d = { moods: [], letters: [], diaries: [], qa: [], digestOn: false, daysFont: "song", lastLetterDay: "", lastDiaryDay: "" };
+  for (const k in d) {
+    if (state.home[k] === undefined) state.home[k] = d[k];
+  }
+})();
+
+function todayKey() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+
+/* 微信角减肥1px */
+(function () {
+  const el2 = document.getElementById("dyn-style");
+  const L = el2.textContent.split(NL).filter(x => x.indexOf("bs-wechat") < 0);
+  L.push(".bs-wechat-user::after{content:'';position:absolute;right:-4px;top:14px;width:0;height:0;border-style:solid;border-width:3px 0 3px 5px;border-color:transparent transparent transparent var(--tail-c);}");
+  L.push(".bs-wechat-ai::after{content:'';position:absolute;left:-4px;top:14px;width:0;height:0;border-style:solid;border-width:3px 5px 3px 0;border-color:transparent var(--tail-c) transparent transparent;}");
+  el2.textContent = L.join(NL);
+})();
+
+/* 相识面板整体重建 */
+function buildDaysPanel() {
+  const panel = document.getElementById("days-panel");
+  panel.innerHTML = "";
+
+  const header = el("div", "panel-header");
+  const back = el("button", "topbar-btn", "‹");
+  back.onclick = () => closePanel("#days-panel");
+  header.appendChild(back);
+  header.appendChild(el("div", "panel-title", "我们"));
+  panel.appendChild(header);
+
+  const hero = el("div", "");
+  hero.style.cssText = "text-align:center;padding:26px 16px 18px;";
+  const lb = el("div", "", "我们在一起");
+  lb.style.cssText = "font-size:13px;color:#999;letter-spacing:2px;";
+  const num = el("div", "", String(loveDays()));
+  num.style.cssText = "font-size:64px;font-weight:600;line-height:1.2;";
+  num.style.fontFamily = FONT_LIST[state.home.daysFont] || FONT_LIST.song;
+  const unit = el("div", "", "天");
+  unit.style.cssText = "font-size:13px;color:#999;";
+  const dt = el("div", "", "自 2026.06.07 起");
+  dt.style.cssText = "font-size:11px;color:#bbb;margin-top:6px;";
+  hero.appendChild(lb);
+  hero.appendChild(num);
+  hero.appendChild(unit);
+  hero.appendChild(dt);
+  panel.appendChild(hero);
+
+  const tabs = el("div", "seg-group");
+  tabs.style.cssText = "padding:0 16px;display:flex;gap:8px;";
+  const names = [["mood", "心情"], ["letter", "信箱"], ["diary", "日记"], ["qa", "罐头"]];
+  const body = el("div", "");
+  body.style.cssText = "padding:14px 16px 60px;";
+
+  names.forEach(pair => {
+    const b = el("button", "seg-btn", pair[1]);
+    b._k = pair[0];
+    b.onclick = () => {
+      panel._tab = pair[0];
+      Array.from(tabs.children).forEach(x => x.classList.toggle("on", x._k === pair[0]));
+      renderHomeTab(body, pair[0]);
+    };
+    tabs.appendChild(b);
+  });
+  panel.appendChild(tabs);
+  panel.appendChild(body);
+
+  const first = panel._tab || "mood";
+  Array.from(tabs.children).forEach(x => x.classList.toggle("on", x._k === first));
+  renderHomeTab(body, first);
+}
+
+/* 房间分发 */
+function renderHomeTab(body, tab) {
+  body.innerHTML = "";
+  if (tab === "mood") renderMoodRoom(body);
+  if (tab === "letter") renderLetterRoom(body);
+  if (tab === "diary") renderDiaryRoom(body);
+  if (tab === "qa") renderQaRoom(body);
+}
+/* ---------- 心情房间 ---------- */
+const MOOD_FACES = [
+  { k: "happy", face: "😊", name: "开心" },
+  { k: "love", face: "🥰", name: "甜甜" },
+  { k: "calm", face: "😌", name: "平静" },
+  { k: "tired", face: "😪", name: "累了" },
+  { k: "sad", face: "😢", name: "难过" },
+  { k: "angry", face: "😤", name: "生气" }
+];
+
+function renderMoodRoom(body) {
+  const today = todayKey();
+  const done = state.home.moods.find(m => m.day === today);
+
+  const tip = el("div", "", done? "今天已打卡，可以重选" : "今天的心情是？");
+  tip.style.cssText = "font-size:13px;color:#888;margin-bottom:10px;";
+  body.appendChild(tip);
+
+  const row = el("div", "");
+  row.style.cssText = "display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;";
+  MOOD_FACES.forEach(mf => {
+    const b = el("button", "");
+    b.textContent = mf.face;
+    const on = done && done.mood === mf.k;
+    b.style.cssText = "font-size:26px;padding:8px 10px;border-radius:12px;border:2px solid " + (on? "#D97757" : "transparent") + ";background:rgba(255,255,255,0.5);";
+    b.onclick = () => {
+      inputDialog("想说点什么吗（可留空）", done? done.note : "", v => {
+        state.home.moods = state.home.moods.filter(m => m.day!== today);
+        state.home.moods.push({ day: today, mood: mf.k, note: v.trim() });
+        saveState();
+        renderMoodRoom(clearBody(body));
+        toast("打卡成功 " + mf.face);
+      }, false);
+    };
+    row.appendChild(b);
+  });
+  body.appendChild(row);
+
+  const hist = state.home.moods.slice().sort((a, b) => b.day < a.day? -1 : 1);
+  if (hist.length) {
+    const ht = el("div", "", "心情日历");
+    ht.style.cssText = "font-size:12px;color:#aaa;margin:8px 0;";
+    body.appendChild(ht);
+    hist.forEach(m => {
+      const mf = MOOD_FACES.find(x => x.k === m.mood);
+      const item = el("div", "");
+      item.style.cssText = "display:flex;align-items:center;gap:10px;padding:9px 12px;background:rgba(255,255,255,0.45);border-radius:12px;margin-bottom:7px;";
+      item.appendChild(el("span", "", mf? mf.face : "😶"));
+      const info = el("div", "");
+      info.style.flex = "1";
+      const d1 = el("div", "", m.day + " " + (mf? mf.name : ""));
+      d1.style.cssText = "font-size:12px;color:#666;";
+      info.appendChild(d1);
+      if (m.note) {
+        const d2 = el("div", "", m.note);
+        d2.style.cssText = "font-size:13px;margin-top:2px;";
+        info.appendChild(d2);
+      }
+      item.appendChild(info);
+      const del = el("span", "", "✕");
+      del.style.cssText = "color:#ccc;padding:4px;";
+      del.onclick = () => confirmDialog("删除这条心情？", () => {
+        state.home.moods = state.home.moods.filter(x => x.day!== m.day);
+        saveState();
+        renderMoodRoom(clearBody(body));
+      });
+      item.appendChild(del);
+      body.appendChild(item);
+    });
+  }
+}
+
+function clearBody(body) {
+  body.innerHTML = "";
+  return body;
+}
+
+/* 接管旧入口 */
+document.getElementById("menu-days").onclick = () => {
+  buildDaysPanel();
+  openPanel("#days-panel");
+};
 
