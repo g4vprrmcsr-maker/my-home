@@ -3248,3 +3248,77 @@ dressBubble = function (bubble, isUser) {
 })();
 
 renderMessages();
+/* ==========================================
+   补丁 v8：气泡打回原形 + 润肤拉条
+   ========================================== */
+
+if (state.settings.bubbleGlow === undefined) state.settings.bubbleGlow = 0;
+saveState();
+
+/* 气泡恢复原配方，润度纯加装 */
+dressBubble = function (bubble, isUser) {
+  const st = state.settings;
+  bubble.className = "msg-bubble";
+  bubble.style.cssText = "";
+
+  if (st.aiBare &&!isUser) {
+    bubble.style.padding = "0 2px";
+    return;
+  }
+
+  const shape = BUBBLE_SHAPES[st.bubbleShape] || BUBBLE_SHAPES["round-lg"];
+  bubble.style.borderRadius = shape.radius;
+  if (st.bubbleShape === "pill") {
+    bubble.style.padding = "8px 16px";
+  }
+
+  const tailed = ["tail", "wechat", "rect"].indexOf(st.bubbleShape) >= 0;
+  const hsl = bubbleColorOf(isUser);
+  const g = (st.bubbleGlow || 0) / 100;
+
+  if (hsl) {
+    const hue = isUser? st.userHue : st.aiHue;
+    const s = isUser? st.userSat : st.aiSat;
+    const l = isUser? st.userLight : st.aiLight;
+    let bg = hsl.bg;
+    if (tailed) {
+      bg = "hsl(" + hue + "," + s + "%," + l + "%)";
+    }
+    bubble.style.background = bg;
+    bubble.style.color = hsl.dark? "#f2f2f2" : "#1a1a1a";
+
+    if (g > 0) {
+      const glow = "hsla(" + hue + "," + Math.max(s, 25) + "%," + Math.max(l - 28, 10) + "%," + (0.28 * g).toFixed(2) + ")";
+      bubble.style.boxShadow = "0 1px 6px rgba(0,0,0,0.05), 0 2px " + Math.round(4 + 6 * g) + "px " + glow + ", 0 6px " + Math.round(10 + 14 * g) + "px " + glow;
+    } else {
+      bubble.style.boxShadow = "0 1px 6px rgba(0,0,0,0.05)";
+    }
+
+    if (tailed) {
+      bubble.style.setProperty("--tail-c", bg);
+      bubble.classList.add("bs-" + st.bubbleShape + "-" + (isUser? "user" : "ai"));
+    }
+  } else {
+    if (st.bubbleTexture === "water") {
+      bubble.style.background = "linear-gradient(155deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.14) 100%)";
+      bubble.style.boxShadow = "inset 0 1px 1px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.04)";
+    } else {
+      bubble.style.background = st.darkMode? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.3)";
+      bubble.style.boxShadow = "0 1px 8px rgba(0,0,0,0.04)";
+    }
+    if (g > 0) {
+      bubble.style.boxShadow += ", 0 4px " + Math.round(8 + 12 * g) + "px rgba(170,140,125," + (0.18 * g).toFixed(2) + ")";
+    }
+  }
+};
+
+/* 主题页焊润肤拉条 */
+const _btp8 = buildThemePanel;
+buildThemePanel = function () {
+  _btp8();
+  const body = document.getElementById("theme-body");
+  const sec = mkSection(body, "气泡润度");
+  mkSlider(sec, "润度（0为原味）", 0, 100, 1, "bubbleGlow", "", () => renderMessages());
+};
+buildThemePanel();
+renderMessages();
