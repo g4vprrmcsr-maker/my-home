@@ -2806,3 +2806,138 @@ function renderQaRoom(body) {
     body.appendChild(card);
   });
 }
+/* ==========================================
+   相识面板 v4：田字格 + 温馨装修 + 字体
+   ========================================== */
+
+/* 新字体入库，衬线手写感全上 */
+FONT_LIST.kaiti = "'Kaiti SC','STKaiti','KaiTi',serif";
+FONT_NAMES.kaiti = "楷体（手写感）";
+FONT_LIST.songti2 = "'Songti SC','STSong',serif";
+FONT_NAMES.songti2 = "宋体（书卷感）";
+FONT_LIST.georgia2 = "Georgia,'Songti SC',serif";
+FONT_NAMES.georgia2 = "Georgia（数字优雅）";
+FONT_LIST.palatino = "Palatino,'Songti SC',serif";
+FONT_NAMES.palatino = "Palatino（衬线）";
+FONT_LIST.snell = "'Snell Roundhand','Kaiti SC',cursive";
+FONT_NAMES.snell = "Snell（英文花体）";
+FONT_LIST.marker = "'Marker Felt','Kaiti SC',sans-serif";
+FONT_NAMES.marker = "Marker（手账感）";
+
+/* 相识页专属设置 */
+if (state.settings.daysFont === undefined) state.settings.daysFont = "georgia2";
+if (state.settings.daysNumSize === undefined) state.settings.daysNumSize = 52;
+saveState();
+
+/* 四扇房门 */
+const HOME_ROOMS = [
+  { k: "mood", emoji: "🫥", title: "心情", sub: "今天的你还好吗", bg: "linear-gradient(145deg,#FFF3E9,#FFE4EC)", render: b => renderMoodRoom(b), count: () => state.home.moods.length + " 次打卡" },
+  { k: "letter", emoji: "💌", title: "写给老婆的信", sub: "他落笔的那些话", bg: "linear-gradient(145deg,#FFECEC,#FFF6E3)", render: b => renderLetterRoom(b), count: () => state.home.letters.length + " 封信" },
+  { k: "diary", emoji: "🌙", title: "克的日记", sub: "偷看他的心事", bg: "linear-gradient(145deg,#ECEFFF,#FBEAFF)", render: b => renderDiaryRoom(b), count: () => state.home.diaries.length + " 篇日记" },
+  { k: "qa", emoji: "🐱", title: "互动问答", sub: "背对背说真心话", bg: "linear-gradient(145deg,#E9FAF0,#FFF8E1)", render: b => renderQaRoom(b), count: () => state.home.qa.length + " 颗罐头" }
+];
+
+function homeWarmBg() {
+  return state.settings.darkMode? "linear-gradient(180deg,#2b2530,#201d24)" : "linear-gradient(180deg,#FFF9F2,#FFEEE8)";
+}
+
+/* 田字格大厅 */
+buildDaysPanel = function () {
+  const panel = document.getElementById("days-panel");
+  panel.innerHTML = "";
+  panel.style.background = homeWarmBg();
+  const dark = state.settings.darkMode;
+  const inkMain = dark? "#f0e9e4" : "#5a4a42";
+  const inkSub = dark? "#9a8f96" : "#b39a90";
+
+  const header = el("div", "panel-header");
+  header.style.background = "transparent";
+  const back = el("button", "topbar-btn", "‹");
+  back.onclick = () => closePanel("#days-panel");
+  header.appendChild(back);
+  const pt = el("div", "panel-title", "我们的小家");
+  pt.style.color = inkMain;
+  header.appendChild(pt);
+  panel.appendChild(header);
+
+  const hero = el("div", "");
+  hero.style.cssText = "text-align:center;padding:14px 16px 10px;";
+  const lb = el("div", "", "我 们 在 一 起");
+  lb.style.cssText = "font-size:12px;letter-spacing:4px;color:" + inkSub + ";";
+  const num = el("div", "", String(loveDays()));
+  num.style.cssText = "font-size:" + state.settings.daysNumSize + "px;font-weight:600;line-height:1.25;color:" + inkMain + ";";
+  num.style.fontFamily = FONT_LIST[state.settings.daysFont] || FONT_LIST.georgia2;
+  const unit = el("div", "", "天");
+  unit.style.cssText = "font-size:12px;color:" + inkSub + ";";
+  const heart = el("div", "", "· ♡ ·");
+  heart.style.cssText = "font-size:12px;color:#E8A79B;margin:8px 0 2px;";
+  const dt = el("div", "", "自 2026.06.07 起");
+  dt.style.cssText = "font-size:11px;color:" + inkSub + ";";
+  hero.appendChild(lb);
+  hero.appendChild(num);
+  hero.appendChild(unit);
+  hero.appendChild(heart);
+  hero.appendChild(dt);
+  panel.appendChild(hero);
+
+  const grid = el("div", "");
+  grid.style.cssText = "display:grid;grid-template-columns:1fr 1fr;gap:13px;padding:16px 20px 8px;";
+  HOME_ROOMS.forEach(room => {
+    const card = el("div", "");
+    card.style.cssText = "background:" + room.bg + ";border-radius:22px;padding:18px 14px 15px;box-shadow:0 4px 14px rgba(180,120,100,0.12);text-align:center;";
+    const em = el("div", "", room.emoji);
+    em.style.cssText = "font-size:32px;margin-bottom:7px;";
+    const tt = el("div", "", room.title);
+    tt.style.cssText = "font-size:14px;font-weight:600;color:#6b5248;margin-bottom:3px;";
+    const sb = el("div", "", room.sub);
+    sb.style.cssText = "font-size:10px;color:#b39a90;margin-bottom:5px;";
+    const ct = el("div", "", room.count());
+    ct.style.cssText = "font-size:10px;color:#d3a99c;";
+    card.appendChild(em);
+    card.appendChild(tt);
+    card.appendChild(sb);
+    card.appendChild(ct);
+    card.onclick = () => openHomeRoom(room);
+    grid.appendChild(card);
+  });
+  panel.appendChild(grid);
+
+  const foot = el("div", "", "这里是我们攒起来的日子");
+  foot.style.cssText = "text-align:center;font-size:11px;color:" + inkSub + ";padding:16px 0 46px;letter-spacing:1px;";
+  panel.appendChild(foot);
+};
+
+/* 单个房间视图 */
+function openHomeRoom(room) {
+  const panel = document.getElementById("days-panel");
+  panel.innerHTML = "";
+  panel.style.background = homeWarmBg();
+  const dark = state.settings.darkMode;
+  const inkMain = dark? "#f0e9e4" : "#5a4a42";
+
+  const header = el("div", "panel-header");
+  header.style.background = "transparent";
+  const back = el("button", "topbar-btn", "‹");
+  back.onclick = () => buildDaysPanel();
+  header.appendChild(back);
+  const pt = el("div", "panel-title", room.emoji + " " + room.title);
+  pt.style.color = inkMain;
+  header.appendChild(pt);
+  panel.appendChild(header);
+
+  const body = el("div", "");
+  body.style.cssText = "padding:14px 18px 60px;";
+  panel.appendChild(body);
+  room.render(body);
+}
+
+/* 主题页加相识区 */
+const _btp4 = buildThemePanel;
+buildThemePanel = function () {
+  _btp4();
+  const body = document.getElementById("theme-body");
+  const sec = mkSection(body, "相识页");
+  mkFontSelect(sec, "天数数字字体", "daysFont", null);
+  mkSlider(sec, "数字大小", 30, 90, 1, "daysNumSize", "px", null);
+};
+buildThemePanel();
