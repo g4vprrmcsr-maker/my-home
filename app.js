@@ -3322,3 +3322,38 @@ buildThemePanel = function () {
 };
 buildThemePanel();
 renderMessages();
+/* ==========================================
+   补丁 v9：圆角体系 + 淡阴影 + 字号层级
+   ========================================== */
+
+(function () {
+  let st4 = document.getElementById("polish-style-4");
+  if (!st4) {
+    st4 = document.createElement("style");
+    st4.id = "polish-style-4";
+    document.head.appendChild(st4);
+  }
+  const L = [];
+
+  /* 圆角体系：卡片16 按钮12 小元素8 */
+  L.push(".btn,.seg-btn{border-radius:12px;}");
+  L.push("input,textarea,select{border-radius:12px;}");
+  L.push(".form-card,.provider-card,.mem-item,.session-item{border-radius:16px;}");
+  L.push(".color-dot{border-radius:8px;}");
+  L.push("input[type=range]{border-radius:8px;}");
+
+  /* 阴影体系：全员换成iOS式多层淡影，黑影全下岗 */
+  L.push(".btn{box-shadow:0 1px 2px rgba(0,0,0,0.04),0 3px 8px rgba(0,0,0,0.04);}");
+  L.push(".form-card,.provider-card,.session-item{box-shadow:0 1px 3px rgba(0,0,0,0.04),0 4px 12px rgba(0,0,0,0.05);}");
+  L.push(".panel-header{box-shadow:none;}");
+
+  /* 字号层级：正文16 次要14 小字12 标题分明 */
+  L.push(".msg-bubble{font-size:16px;}");
+  L.push(".panel-title{font-size:17px;font-weight:600;}");
+  L.push(".form-label{font-size:14px;}");
+  L.push(".seg-btn,.btn{font-size:14px;}");
+  L.push(".slider-head,.slider-val{font-size:12px;}");
+  L.push(".msg-time{font-size:11px;}");
+
+  st4.textContent = L.join(NL);
+})();
