@@ -823,4 +823,63 @@ body.export-mode.msg-check {
   width: 0;
   height: 0;
 }
+/* ===== 修复补丁 v2.1 ===== */
+
+/* 毛玻璃侧边栏 */
+body.theme-glass #sidebar {
+  background: rgba(255, 255, 255, var(--sidebar-alpha))!important;
+  backdrop-filter: blur(24px) saturate(1.6)!important;
+  -webkit-backdrop-filter: blur(24px) saturate(1.6)!important;
+}
+
+/* 无气泡模式：AI裸文字 */
+body.no-bubble.msg-row.ai.msg-bubble {
+  background: transparent!important;
+  backdrop-filter: none!important;
+  -webkit-backdrop-filter: none!important;
+  box-shadow: none!important;
+  padding: 0 2px!important;
+  border-radius: 0!important;
+}
+
+/* 气泡按字数收缩，不拖长尾 */.msg-bubble {
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* 我的消息靠右对齐 */.msg-row.user.msg-body {
+  align-items: flex-end;
+}.msg-row.user.msg-bubble {
+  background: rgba(255, 255, 255, 0.26);
+}
+
+/* 顶栏完全透明，和背景融合 */
+#topbar {
+  background: transparent!important;
+  backdrop-filter: none!important;
+  -webkit-backdrop-filter: none!important;
+  border: none!important;
+  box-shadow: none!important;
+}
+
+/* 名字在上粗圆体，时间戳在下细圆体 */.msg-meta {
+  flex-direction: column;
+  gap: 1px;
+  align-items: flex-start;
+}.msg-row.user.msg-meta {
+  align-items: flex-end;
+}.msg-meta.msg-name {
+  font-family: ui-rounded, "SF Pro Rounded", "PingFang SC", sans-serif;
+  font-weight: 600;
+  font-size: 11px;
+  color: #666;
+}.msg-meta > span:not(.msg-name) {
+  font-family: ui-rounded, "SF Pro Rounded", "PingFang SC", sans-serif;
+  font-weight: 300;
+  font-size: 9px;
+  color: #c4c4c4;
+}.msg-footer {
+  font-family: ui-rounded, "SF Pro Rounded", "PingFang SC", sans-serif;
+  font-weight: 300;
+}
 
