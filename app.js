@@ -1324,4 +1324,85 @@ applyTheme = function () {
 };
 
 applyTheme();
+/* ===== 补丁 v2.3：三档侧边栏 + 圆滑字体 ===== */
+
+/* 主题页加第三个按钮 */
+(function () {
+  const seg = document.getElementById("seg-theme");
+  if (seg &&!seg.querySelector('[data-v="clear"]')) {
+    const b = document.createElement("button");
+    b.dataset.v = "clear";
+    b.textContent = "高透液态";
+    b.onclick = () => {
+      state.settings.theme = "clear";
+      saveState();
+      applyTheme();
+      fillThemePanel();
+    };
+    seg.appendChild(b);
+  }
+})();
+
+/* 三档侧边栏 */
+const _at3 = applyTheme;
+applyTheme = function () {
+  _at3();
+  const sb = document.getElementById("sidebar");
+  const mask = document.getElementById("sidebar-mask");
+  const a = (state.settings.sidebarAlpha || 72) / 100;
+  const t = state.settings.theme;
+  if (t === "glass") {
+    sb.style.background = "rgba(255,255,255," + a + ")";
+    sb.style.backdropFilter = "blur(24px) saturate(1.6)";
+    sb.style.webkitBackdropFilter = "blur(24px) saturate(1.6)";
+    mask.style.background = "rgba(0,0,0,0.18)";
+  } else if (t === "clear") {
+    sb.style.background = "rgba(255,255,255," + (a * 0.35) + ")";
+    sb.style.backdropFilter = "blur(5px) saturate(1.3)";
+    sb.style.webkitBackdropFilter = "blur(5px) saturate(1.3)";
+    mask.style.background = "rgba(0,0,0,0.06)";
+  } else {
+    sb.style.background = "";
+    sb.style.backdropFilter = "";
+    sb.style.webkitBackdropFilter = "";
+    mask.style.background = "";
+  }
+};
+
+/* 名字粗圆体在上，时间戳细圆体在下，token细圆体 */
+function styleMeta() {
+  const R = 'ui-rounded,"SF Pro Rounded","PingFang SC",sans-serif';
+  document.querySelectorAll(".msg-meta").forEach(meta => {
+    meta.style.flexDirection = "column";
+    meta.style.gap = "1px";
+    const row = meta.closest(".msg-row");
+    meta.style.alignItems = row && row.classList.contains("user")? "flex-end" : "flex-start";
+    const name = meta.querySelector(".msg-name");
+    if (name) {
+      name.style.fontFamily = R;
+      name.style.fontWeight = "600";
+      name.style.fontSize = "11px";
+      name.style.color = "#666";
+    }
+    meta.querySelectorAll("span:not(.msg-name)").forEach(s => {
+      s.style.fontFamily = R;
+      s.style.fontWeight = "300";
+      s.style.fontSize = "9px";
+      s.style.color = "#c8c8c8";
+    });
+  });
+  document.querySelectorAll(".msg-footer").forEach(f => {
+    f.style.fontFamily = R;
+    f.style.fontWeight = "300";
+  });
+}
+
+const _rm3 = renderMessages;
+renderMessages = async function () {
+  await _rm3();
+  styleMeta();
+};
+
+applyTheme();
+styleMeta();
 
