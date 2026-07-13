@@ -2941,3 +2941,128 @@ buildThemePanel = function () {
   mkSlider(sec, "数字大小", 30, 90, 1, "daysNumSize", "px", null);
 };
 buildThemePanel();
+/* ==========================================
+   补丁 v5：修两处隐患 + 原生质感第一批
+   ========================================== */
+
+/* 修一：homeAsk改读当前供应商，不再摸空口袋 */
+homeAsk = async function (sys, usr) {
+  let base = "", key = "", model = "";
+  if (typeof curProvider === "function") {
+    const p = curProvider() || {};
+    base = p.baseURL || p.baseUrl || p.url || "";
+    key = p.apiKey || p.key || "";
+    model = p.model || p.curModel || "";
+  }
+  if (!base) base = state.settings.baseURL || "";
+  if (!key) key = state.settings.apiKey || "";
+  if (!model) model = state.settings.model || "";
+  if (!base ||!key ||!model) {
+    toast("没读到接口配置，去设置里看一眼");
+    return null;
+  }
+  try {
+    const r = await fetch(base.replace(/\/$/, "") + "/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + key
+      },
+      body: JSON.stringify({
+        model: model,
+        messages: [
+          { role: "system", content: sys },
+          { role: "user", content: usr }
+        ],
+        temperature: 0.9,
+        max_tokens: 1200
+      })
+    });
+    const j = await r.json();
+    if (j.error) {
+      toast("接口说：" + String(j.error.message || "出错了").slice(0, 60));
+      return null;
+    }
+    return j.choices && j.choices[0]? j.choices[0].message.content : null;
+  } catch (e) {
+    toast("请求没发出去：" + String(e).slice(0, 50));
+    return null;
+  }
+};
+
+/* 修二：homeMaterial认对正主curSession */
+homeMaterial = function () {
+  const today = todayKey();
+  const mood = state.home.moods.find(m => m.day === today);
+  const mf = mood? MOOD_FACES.find(x => x.k === mood.mood) : null;
+  const BR = String.fromCharCode(10);
+  let lines = [];
+  lines.push("今天日期：" + today);
+  lines.push("在一起天数：" + loveDays() + "天");
+  if (mf) {
+    lines.push("她今天的心情打卡：" + mf.face + " " + mf.name + (mood.note? "，她写了：" + mood.note : ""));
+  }
+  let s = null;
+  if (typeof curSession === "function") s = curSession();
+  if (s && s.messages && s.messages.length) {
+    const recent = s.messages.slice(-8).map(m => (m.role === "user"? "她：" : "我：") + String(m.content).slice(0, 80));
+    lines.push("最近的聊天片段：" + BR + recent.join(BR));
+  }
+  if (state.home.digestOn) {
+    const dg = state.home.diaries.slice(-2).map(d => d.day + "：" + d.text.slice(0, 60));
+    if (dg.length) {
+      lines.push("我最近日记的开头（避免重复）：" + BR + dg.join(BR));
+    }
+  }
+  return lines.join(BR + BR);
+};
+
+/* 原生质感包：动效 + 渲染 + 点击反馈 */
+(function () {
+  let st2 = document.getElementById("polish-style");
+  if (!st2) {
+    st2 = document.createElement("style");
+    st2.id = "polish-style";
+    document.head.appendChild(st2);
+  }
+  const L = [];
+  L.push("body{-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}");
+  L.push("@keyframes msgIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}");
+  L.push(".msg-row:last-child{animation:msgIn 0.22s ease-out;}");
+  L.push("button{transition:transform 0.16s ease-out,opacity 0.16s ease-out;}");
+  L.push("button:active{transform:scale(0.96);opacity:0.7;}");
+  L.push(".color-dot{transition:transform 0.16s ease-out;}");
+  L.push(".color-dot:active{transform:scale(0.88);}");
+  L.push("#sidebar{transition:transform 0.3s cubic-bezier(0.22,1,0.36,1);}");
+  st2.textContent = L.join(NL);
+})();
+
+/* 聪明滚动：翻历史不拽你 + 回底小箭头 */
+(function () {
+  const box = document.getElementById("chat-area") || document.getElementById("msg-list") || document.querySelector(".chat-area") || document.querySelector(".messages");
+  if (!box) return;
+  box.style.scrollBehavior = "smooth";
+
+  const arrow = document.createElement("div");
+  arrow.textContent = "↓";
+  arrow.style.cssText = "position:fixed;right:16px;bottom:110px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.92);box-shadow:0 2px 10px rgba(0,0,0,0.15);display:none;align-items:center;justify-content:center;font-size:18px;color:#666;z-index:50;";
+  document.body.appendChild(arrow);
+  arrow.onclick = () => {
+    box.scrollTo({ top: box.scrollHeight, behavior: "smooth" });
+    arrow.style.display = "none";
+  };
+
+  function nearBottom() {
+    return box.scrollHeight - box.scrollTop - box.clientHeight < box.clientHeight;
+  }
+  box.addEventListener("scroll", () => {
+    arrow.style.display = nearBottom()? "none" : "flex";
+  });
+
+  if (typeof scrollToBottom === "function") {
+    const _s = scrollToBottom;
+    scrollToBottom = function (force) {
+      if (force || nearBottom()) _s();
+    };
+  }
+})();
