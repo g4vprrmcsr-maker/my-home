@@ -1534,4 +1534,152 @@ renderMessages = async function () {
 
 styleMeta();
 applyWaterBubbles();
+/* ===== 补丁 v2.5：清水气泡 + 底部融合 + 字体自选 ===== */
+const FONT_LIST = {
+  system: '-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif',
+  round: 'ui-rounded,"SF Pro Rounded","PingFang SC",sans-serif',
+  song: '"Songti SC","STSong",Georgia,serif',
+  kai: '"Kaiti SC","STKaiti",serif',
+  hei: '"PingFang SC","Heiti SC",sans-serif',
+  mono: 'ui-monospace,Menlo,Consolas,monospace'
+};
+const FONT_NAMES = { system: "系统默认", round: "圆体", song: "宋体", kai: "楷体", hei: "黑体", mono: "等宽" };
+
+if (!state.settings.chatFont) state.settings.chatFont = "system";
+if (!state.settings.uiFont) state.settings.uiFont = "system";
+if (!state.settings.metaFont) state.settings.metaFont = "round";
+if (!state.settings.metaSize) state.settings.metaSize = 10;
+if (!state.settings.metaWeight) state.settings.metaWeight = 400;
+if (!state.settings.metaShade) state.settings.metaShade = 150;
+
+/* 背景钉死全屏，盖住底部安全区 */
+(function () {
+  const bg = document.getElementById("chat-bg");
+  bg.style.position = "fixed";
+  bg.style.top = "0";
+  bg.style.left = "0";
+  bg.style.right = "0";
+  bg.style.bottom = "0";
+})();
+
+/* 清水气泡，无磨砂无白边，只有水光 */
+function applyWaterBubbles() {
+  const on = state.settings.bubbleWater;
+  document.querySelectorAll(".msg-bubble").forEach(b => {
+    if (b.classList.contains("ai-bare")) {
+      b.style.background = "";
+      b.style.backdropFilter = "";
+      b.style.webkitBackdropFilter = "";
+      b.style.boxShadow = "";
+      b.style.border = "";
+      return;
+    }
+    if (on) {
+      b.style.backdropFilter = "none";
+      b.style.webkitBackdropFilter = "none";
+      b.style.border = "none";
+      b.style.background = "linear-gradient(155deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.14) 100%)";
+      b.style.boxShadow = "inset 0 1px 1px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.04)";
+    } else {
+      b.style.background = "";
+      b.style.backdropFilter = "";
+      b.style.webkitBackdropFilter = "";
+      b.style.boxShadow = "";
+      b.style.border = "";
+    }
+  });
+}
+
+/* 字体应用 */
+function applyFonts() {
+  document.getElementById("chat-area").style.fontFamily = FONT_LIST[state.settings.chatFont];
+  document.getElementById("input-text").style.fontFamily = FONT_LIST[state.settings.chatFont];
+  document.getElementById("sidebar").style.fontFamily = FONT_LIST[state.settings.uiFont];
+  document.getElementById("topbar-title").style.fontFamily = FONT_LIST[state.settings.uiFont];
+}
+
+/* 小字样式，可调大小粗细深浅，覆盖旧版 */
+function styleMeta() {
+  const st = state.settings;
+  const F = FONT_LIST[st.metaFont];
+  const gray = "rgb(" + st.metaShade + "," + st.metaShade + "," + st.metaShade + ")";
+  const nameGray = "rgb(" + Math.max(60, st.metaShade - 40) + "," + Math.max(60, st.metaShade - 40) + "," + Math.max(60, st.metaShade - 40) + ")";
+  document.querySelectorAll(".msg-meta").forEach(meta => {
+    meta.style.flexDirection = "column";
+    meta.style.gap = "1px";
+    const row = meta.closest(".msg-row");
+    meta.style.alignItems = row && row.classList.contains("user")? "flex-end" : "flex-start";
+    const name = meta.querySelector(".msg-name");
+    if (name) {
+      name.style.fontFamily = F;
+      name.style.fontWeight = String(st.nameWeight);
+      name.style.fontSize = (st.metaSize + 1) + "px";
+      name.style.color = nameGray;
+    }
+    meta.querySelectorAll("span:not(.msg-name)").forEach(s => {
+      s.style.fontFamily = F;
+      s.style.fontWeight = String(st.metaWeight);
+      s.style.fontSize = st.metaSize + "px";
+      s.style.color = gray;
+    });
+  });
+  document.querySelectorAll(".msg-footer").forEach(f => {
+    f.style.fontFamily = F;
+    f.style.fontWeight = String(st.metaWeight);
+    f.style.fontSize = st.metaSize + "px";
+    f.style.color = gray;
+  });
+}
+
+/* 主题页注入字体区 */
+(function () {
+  if (document.getElementById("font-sec")) return;
+  const opts = k => Object.keys(FONT_NAMES).map(v =>
+    `<option value="${v}" ${state.settings[k] === v? "selected" : ""}>${FONT_NAMES[v]}</option>`
+  ).join("");
+  const sec = document.createElement("div");
+  sec.className = "settings-section";
+  sec.id = "font-sec";
+  sec.innerHTML = `
+    <h3>字体</h3>
+    <div class="form-row"><label>聊天字体</label><select id="f-chat">${opts("chatFont")}</select></div>
+    <div class="form-row"><label>界面字体（侧边栏 标题）</label><select id="f-ui">${opts("uiFont")}</select></div>
+    <div class="form-row"><label>小字字体（昵称 时间 token）</label><select id="f-meta">${opts("metaFont")}</select></div>
+    <div class="slider-row">
+      <div class="slider-head"><span>小字大小</span><span class="slider-val" id="sl-ms-val"></span></div>
+      <input type="range" id="sl-ms" min="8" max="14" step="1">
+    </div>
+    <div class="slider-row">
+      <div class="slider-head"><span>小字粗细</span><span class="slider-val" id="sl-mw2-val"></span></div>
+      <input type="range" id="sl-mw2" min="200" max="700" step="100">
+    </div>
+    <div class="slider-row">
+      <div class="slider-head"><span>小字深浅（越小越黑）</span><span class="slider-val" id="sl-mc-val"></span></div>
+      <input type="range" id="sl-mc" min="80" max="210" step="5">
+    </div>`;
+  document.getElementById("theme-panel").appendChild(sec);
+
+  document.getElementById("f-chat").onchange = e => { state.settings.chatFont = e.target.value; saveState(); applyFonts(); };
+  document.getElementById("f-ui").onchange = e => { state.settings.uiFont = e.target.value; saveState(); applyFonts(); };
+  document.getElementById("f-meta").onchange = e => { state.settings.metaFont = e.target.value; saveState(); styleMeta(); };
+
+  const bindSl = (id, valId, key, unit) => {
+    const sl = document.getElementById(id);
+    sl.value = state.settings[key];
+    document.getElementById(valId).textContent = state.settings[key] + (unit || "");
+    sl.addEventListener("input", () => {
+      state.settings[key] = parseInt(sl.value);
+      document.getElementById(valId).textContent = sl.value + (unit || "");
+      saveState();
+      styleMeta();
+    });
+  };
+  bindSl("sl-ms", "sl-ms-val", "metaSize", "px");
+  bindSl("sl-mw2", "sl-mw2-val", "metaWeight", "");
+  bindSl("sl-mc", "sl-mc-val", "metaShade", "");
+})();
+
+applyFonts();
+styleMeta();
+applyWaterBubbles();
 
