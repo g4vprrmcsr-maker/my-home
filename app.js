@@ -1250,4 +1250,45 @@ async function init() {
 }
 
 init();
+/* ===== 修复补丁 v2.1：菜单点击失效 ===== */
+function closeActions() {
+  document.querySelectorAll(".msg-actions").forEach(m => {
+    if (m._closer) {
+      document.removeEventListener("touchstart", m._closer, true);
+      document.removeEventListener("click", m._closer, true);
+    }
+    m.remove();
+  });
+}
+
+function showActions(items, x, y) {
+  closeActions();
+  const menu = document.createElement("div");
+  menu.className = "msg-actions";
+  items.forEach(it => {
+    const b = document.createElement("button");
+    b.textContent = it.label;
+    if (it.danger) b.classList.add("danger");
+    const run = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      closeActions();
+      it.fn();
+    };
+    b.addEventListener("touchend", run);
+    b.addEventListener("click", run);
+    menu.appendChild(b);
+  });
+  document.body.appendChild(menu);
+  const rect = menu.getBoundingClientRect();
+  menu.style.left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8)) + "px";
+  menu.style.top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8)) + "px";
+  setTimeout(() => {
+    menu._closer = (e) => {
+      if (!menu.contains(e.target)) closeActions();
+    };
+    document.addEventListener("touchstart", menu._closer, true);
+    document.addEventListener("click", menu._closer, true);
+  }, 80);
+}
 
