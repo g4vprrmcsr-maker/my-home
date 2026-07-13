@@ -3357,3 +3357,27 @@ renderMessages();
 
   st4.textContent = L.join(NL);
 })();
+/* ==========================================
+   补丁 v10：字号拉条松绑
+   ========================================== */
+
+/* 一、拆掉v9写死的正文16px，拉条全权做主 */
+(function () {
+  const st4 = document.getElementById("polish-style-4");
+  if (st4) {
+    st4.textContent = st4.textContent.split(NL).filter(x => x.indexOf("msg-bubble{font-size") < 0).join(NL);
+  }
+})();
+
+/* 二、字号类拉条下限放宽到6 */
+const _btp10 = buildThemePanel;
+buildThemePanel = function () {
+  _btp10();
+  document.querySelectorAll("#theme-body input[type=range]").forEach(r => {
+    if (r.min === "10" && Number(r.max) <= 40) {
+      r.min = "6";
+    }
+  });
+};
+buildThemePanel();
+renderMessages();
