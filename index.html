@@ -199,6 +199,12 @@
   </div>
 
   <div id="toast"></div>
+<script>
+window.onerror = function (msg, src, line, col) {
+  alert("病灶：" + msg + " 第" + line + "行 第" + col + "列");
+  return false;
+};
+</script>
 
   <script src="app.js?v=12"></script>
 </body>
