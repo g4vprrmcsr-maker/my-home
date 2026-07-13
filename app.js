@@ -2081,4 +2081,100 @@ buildThemePanel();
     }
   }, 100);
 })();
+/* ==========================================
+   补丁 v3.3：尾巴重做 + 方角登场 + DB门卫
+   ========================================== */
+
+/* DB门卫：仓库没开门就排队，杜绝抢跑 */
+(function () {
+  const _get = getImg;
+  getImg = function (key) {
+    if (DB) return _get(key);
+    return new Promise(resolve => {
+      let n = 0;
+      const t = setInterval(() => {
+        n++;
+        if (DB) {
+          clearInterval(t);
+          _get(key).then(resolve);
+        } else if (n > 80) {
+          clearInterval(t);
+          resolve(null);
+        }
+      }, 100);
+    });
+  };
+})();
+
+/* 形状表：小圆角送走，方角登场 */
+delete BUBBLE_SHAPES["round-sm"];
+BUBBLE_SHAPES["rect"] = { name: "方角", radius: "3px" };
+if (state.settings.bubbleShape === "round-sm") state.settings.bubbleShape = "rect";
+
+/* 尾巴全面重做：纯三角，整体在气泡外，零重叠零叠色 */
+(function () {
+  const el2 = document.getElementById("dyn-style");
+  const L = el2.textContent.split(NL).filter(x => x.indexOf("bs-wechat") < 0 && x.indexOf("bs-tail") < 0 && x.indexOf("bs-rect") < 0);
+  const mk = (cls, side) => {
+    if (side === "user") {
+      L.push("." + cls + "-user::after{content:'';position:absolute;right:-6px;top:13px;width:0;height:0;border-style:solid;border-width:4px 0 4px 6px;border-color:transparent transparent transparent var(--tail-c);}");
+    } else {
+      L.push("." + cls + "-ai::after{content:'';position:absolute;left:-6px;top:13px;width:0;height:0;border-style:solid;border-width:4px 6px 4px 0;border-color:transparent var(--tail-c) transparent transparent;}");
+    }
+  };
+  mk("bs-tail", "user");
+  mk("bs-tail", "ai");
+  mk("bs-wechat", "user");
+  mk("bs-wechat", "ai");
+  mk("bs-rect", "user");
+  mk("bs-rect", "ai");
+  el2.textContent = L.join(NL);
+})();
+
+/* 重定义上妆：三种带尾巴的形状统一走新三角 */
+dressBubble = function (bubble, isUser) {
+  const st = state.settings;
+  bubble.className = "msg-bubble";
+  bubble.style.cssText = "";
+
+  if (st.aiBare &&!isUser) {
+    bubble.style.padding = "0 2px";
+    return;
+  }
+
+  const shape = BUBBLE_SHAPES[st.bubbleShape] || BUBBLE_SHAPES["round-lg"];
+  bubble.style.borderRadius = shape.radius;
+  if (st.bubbleShape === "pill") {
+    bubble.style.padding = "8px 16px";
+  }
+
+  const hsl = bubbleColorOf(isUser);
+  let tailColor;
+
+  if (hsl) {
+    bubble.style.background = hsl.bg;
+    bubble.style.boxShadow = "0 1px 6px rgba(0,0,0,0.05)";
+    bubble.style.color = hsl.dark? "#f2f2f2" : "#1a1a1a";
+    tailColor = hsl.bg;
+  } else {
+    if (st.bubbleTexture === "water") {
+      bubble.style.background = "linear-gradient(155deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.14) 100%)";
+      bubble.style.boxShadow = "inset 0 1px 1px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.04)";
+    } else {
+      bubble.style.background = st.darkMode? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.3)";
+      bubble.style.boxShadow = "0 1px 8px rgba(0,0,0,0.04)";
+    }
+    tailColor = st.darkMode? "rgba(255,255,255,0.12)" : "rgba(255,255,255,0.3)";
+  }
+
+  const tailed = ["tail", "wechat", "rect"];
+  if (tailed.indexOf(st.bubbleShape) >= 0) {
+    bubble.style.setProperty("--tail-c", tailColor);
+    bubble.classList.add("bs-" + st.bubbleShape + "-" + (isUser? "user" : "ai"));
+  }
+};
+
+/* 重建主题页刷新形状按钮，重新上妆 */
+buildThemePanel();
+renderMessages();
 
