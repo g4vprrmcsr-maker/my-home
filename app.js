@@ -1945,7 +1945,7 @@ buildThemePanel = function () {
 
 buildThemePanel();
 applyLayout();
-renderMessages();
+
 /* ==========================================
    补丁 v3.2：修抢跑 + 色块回归 + 尾巴融合
    ========================================== */
@@ -2175,6 +2175,85 @@ dressBubble = function (bubble, isUser) {
 };
 
 /* 重建主题页刷新形状按钮，重新上妆 */
+buildThemePanel();
+renderMessages();
+/* ==========================================
+   补丁 v3.4：尾巴实色规矩 + 纯黑 + 深浅到0
+   ========================================== */
+
+/* 黑色加黑 */
+QUICK_COLORS[2].l = 8;
+QUICK_COLORS[2].a = 100;
+
+/* 深浅条下限放到0 */
+(function () {
+  const _mk = mkSlider;
+  mkSlider = function (p, label, min, max, step, key, unit, after) {
+    if (label === "深浅") min = 0;
+    _mk(p, label, min, max, step, key, unit, after);
+  };
+})();
+
+/* 尾巴重铸：埋进泡身1px，实色下隐形焊接 */
+(function () {
+  const el2 = document.getElementById("dyn-style");
+  const L = el2.textContent.split(NL).filter(x => x.indexOf("bs-tail") < 0 && x.indexOf("bs-wechat") < 0 && x.indexOf("bs-rect") < 0);
+  const mk = (cls) => {
+    L.push("." + cls + "-user::after{content:'';position:absolute;right:-5px;top:13px;width:0;height:0;border-style:solid;border-width:4px 0 4px 6px;border-color:transparent transparent transparent var(--tail-c);}");
+    L.push("." + cls + "-ai::after{content:'';position:absolute;left:-5px;top:13px;width:0;height:0;border-style:solid;border-width:4px 6px 4px 0;border-color:transparent var(--tail-c) transparent transparent;}");
+  };
+  mk("bs-tail");
+  mk("bs-wechat");
+  mk("bs-rect");
+  el2.textContent = L.join(NL);
+})();
+
+/* 上妆新规：带尾巴形状颜色强制实色，玻璃泡不长尾巴 */
+dressBubble = function (bubble, isUser) {
+  const st = state.settings;
+  bubble.className = "msg-bubble";
+  bubble.style.cssText = "";
+
+  if (st.aiBare &&!isUser) {
+    bubble.style.padding = "0 2px";
+    return;
+  }
+
+  const shape = BUBBLE_SHAPES[st.bubbleShape] || BUBBLE_SHAPES["round-lg"];
+  bubble.style.borderRadius = shape.radius;
+  if (st.bubbleShape === "pill") {
+    bubble.style.padding = "8px 16px";
+  }
+
+  const tailed = ["tail", "wechat", "rect"].indexOf(st.bubbleShape) >= 0;
+  const hsl = bubbleColorOf(isUser);
+
+  if (hsl) {
+    let bg = hsl.bg;
+    if (tailed) {
+      const hue = isUser? st.userHue : st.aiHue;
+      const s = isUser? st.userSat : st.aiSat;
+      const l = isUser? st.userLight : st.aiLight;
+      bg = "hsl(" + hue + "," + s + "%," + l + "%)";
+    }
+    bubble.style.background = bg;
+    bubble.style.boxShadow = "0 1px 6px rgba(0,0,0,0.05)";
+    bubble.style.color = hsl.dark? "#f2f2f2" : "#1a1a1a";
+    if (tailed) {
+      bubble.style.setProperty("--tail-c", bg);
+      bubble.classList.add("bs-" + st.bubbleShape + "-" + (isUser? "user" : "ai"));
+    }
+  } else {
+    if (st.bubbleTexture === "water") {
+      bubble.style.background = "linear-gradient(155deg, rgba(255,255,255,0.34) 0%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.14) 100%)";
+      bubble.style.boxShadow = "inset 0 1px 1px rgba(255,255,255,0.5), 0 2px 10px rgba(0,0,0,0.04)";
+    } else {
+      bubble.style.background = st.darkMode? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.3)";
+      bubble.style.boxShadow = "0 1px 8px rgba(0,0,0,0.04)";
+    }
+  }
+};
+
 buildThemePanel();
 renderMessages();
 
