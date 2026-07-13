@@ -200,17 +200,21 @@
 
   <div id="toast"></div>
 <script>
-alert("听诊器就位");
 window.onerror = function (msg, src, line, col) {
-  alert("病灶：" + msg + " 第" + line + "行 第" + col + "列");
+  alert("病灶：" + msg + " 第" + line + "行");
   return false;
 };
+window.addEventListener("unhandledrejection", function (e) {
+  var r = e.reason;
+  alert("暗伤：" + (r && r.message? r.message + " " + (r.stack || "").slice(0, 150) : r));
+});
 window.addEventListener("error", function (e) {
   if (e.target && e.target.tagName === "SCRIPT") {
-    alert("app.js没加载到，检查文件名");
+    alert("app.js没加载到");
   }
 }, true);
 </script>
+
 
 
   <script src="app.js?v=12"></script>
