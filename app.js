@@ -2439,4 +2439,45 @@ document.getElementById("menu-days").onclick = () => {
   buildDaysPanel();
   openPanel("#days-panel");
 };
+/* ==========================================
+   补丁 v3.5：抓到内鬼，init的回马枪
+   ========================================== */
+
+/* 笼头一：bindEvents跑完，相识入口立刻夺回 */
+const _bind35 = bindEvents;
+bindEvents = function () {
+  _bind35();
+  document.getElementById("menu-days").onclick = () => {
+    buildDaysPanel();
+    openPanel("#days-panel");
+  };
+};
+
+/* 笼头二：injectDynStyle每次重刷，微信角立刻重焊 */
+const _inj35 = injectDynStyle;
+injectDynStyle = function () {
+  _inj35();
+  const el2 = document.getElementById("dyn-style");
+  const L = el2.textContent.split(NL).filter(x => x.indexOf("bs-wechat") < 0);
+  L.push(".bs-wechat-user::after{content:'';position:absolute;right:-4px;top:14px;width:0;height:0;border-style:solid;border-width:3px 0 3px 5px;border-color:transparent transparent transparent var(--tail-c);}");
+  L.push(".bs-wechat-ai::after{content:'';position:absolute;left:-4px;top:14px;width:0;height:0;border-style:solid;border-width:3px 5px 3px 0;border-color:transparent var(--tail-c) transparent transparent;}");
+  el2.textContent = L.join(NL);
+};
+injectDynStyle();
+
+/* 补一刀：开机后连续六秒反复夺回入口，不给它翻盘机会 */
+(function () {
+  let n = 0;
+  const t = setInterval(() => {
+    n++;
+    const btn = document.getElementById("menu-days");
+    if (btn) {
+      btn.onclick = () => {
+        buildDaysPanel();
+        openPanel("#days-panel");
+      };
+    }
+    if (n > 30) clearInterval(t);
+  }, 200);
+})();
 
