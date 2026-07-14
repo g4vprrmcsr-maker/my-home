@@ -4279,3 +4279,57 @@ setInterval(() => {
     s.style.color = "#8e8e93";
   });
 }, 1200);
+/* ==========================================
+   补丁 v19：纯白回归 + 小字不褪色 + 按钮等高
+   ========================================== */
+
+/* 一、漂白工具改纯白版 */
+coolify = function (ov) {
+  if (!ov) return;
+  if (!state.settings.darkMode) ov.style.background = "rgba(255,255,255,0.98)";
+  ov.querySelectorAll("*").forEach(n => {
+    const s = n.getAttribute("style") || "";
+    if (s.indexOf("255,240,215") >= 0) n.style.background = "rgba(0,0,0,0.04)";
+    if (s.indexOf("201, 150, 74") >= 0 || s.indexOf("#c9964a") >= 0) n.style.color = "#8e8e93";
+    if (s.indexOf("176, 164, 155") >= 0) n.style.color = "#a0a0a5";
+    if (s.indexOf("201, 190, 181") >= 0) n.style.color = "#c7c7cc";
+  });
+};
+
+/* 二、编辑小字出厂即灰，规则级压制，不再有换装瞬间 */
+(function () {
+  let st8 = document.getElementById("polish-style-8");
+  if (!st8) {
+    st8 = document.createElement("style");
+    st8.id = "polish-style-8";
+    document.head.appendChild(st8);
+  }
+  st8.textContent = "[data-myedit]{color:#8e8e93!important;}";
+})();
+
+/* 三、手册两个大按钮统一身高42px */
+(function () {
+  const _r19 = renderMemBook;
+  renderMemBook = function (body, ch) {
+    _r19(body, ch);
+    body.querySelectorAll("button.btn").forEach(b => {
+      if (b.textContent.indexOf("总结") >= 0 || b.textContent.indexOf("手写") >= 0 || b.textContent.indexOf("回忆") >= 0) {
+        b.style.height = "42px";
+        b.style.padding = "0 14px";
+        b.style.fontSize = "14px";
+        b.style.lineHeight = "42px";
+        b.style.boxSizing = "border-box";
+        b.style.display = "block";
+      }
+      if (b.textContent.indexOf("手写") >= 0) {
+        b.style.width = "calc(100% - 28px)";
+        b.style.margin = "8px 14px 14px";
+      }
+      if (b.textContent.indexOf("总结") >= 0 || b.textContent.indexOf("回忆") >= 0) {
+        b.style.width = "100%";
+        b.style.marginBottom = "10px";
+      }
+    });
+    coolify(body);
+  };
+})();
