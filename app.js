@@ -3381,3 +3381,35 @@ buildThemePanel = function () {
 };
 buildThemePanel();
 renderMessages();
+/* ==========================================
+   补丁 v11：文字手感三拉条
+   ========================================== */
+
+if (state.settings.chatSpacing === undefined) state.settings.chatSpacing = 0;
+if (state.settings.chatLineH === undefined) state.settings.chatLineH = 1.6;
+if (state.settings.chatWeight === undefined) state.settings.chatWeight = 400;
+saveState();
+
+function applyChatTypo() {
+  let st5 = document.getElementById("polish-style-5");
+  if (!st5) {
+    st5 = document.createElement("style");
+    st5.id = "polish-style-5";
+    document.head.appendChild(st5);
+  }
+  const L = [];
+  L.push(".msg-bubble{letter-spacing:" + state.settings.chatSpacing + "px;line-height:" + state.settings.chatLineH + ";font-weight:" + state.settings.chatWeight + ";}");
+  st5.textContent = L.join(NL);
+}
+applyChatTypo();
+
+const _btp11 = buildThemePanel;
+buildThemePanel = function () {
+  _btp11();
+  const body = document.getElementById("theme-body");
+  const sec = mkSection(body, "文字手感");
+  mkSlider(sec, "字间距", -1, 3, 0.1, "chatSpacing", "px", applyChatTypo);
+  mkSlider(sec, "行高（松紧）", 1.3, 2.2, 0.05, "chatLineH", "", applyChatTypo);
+  mkSlider(sec, "文字粗细", 300, 700, 100, "chatWeight", "", applyChatTypo);
+};
+buildThemePanel();
