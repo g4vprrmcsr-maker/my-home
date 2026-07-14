@@ -3682,3 +3682,15 @@ function toggleMiniMenu() {
     if (n > 25) clearInterval(t);
   }, 300);
 })();
+/* ==========================================
+   补丁 v14：小菜单入口重做，悬浮小点版
+   ========================================== */
+(function () {
+  const old = document.getElementById("mini-menu-btn");
+  if (old) old.remove();
+  const b = el("button", "", "⋯");
+  b.id = "mini-menu-btn";
+  b.style.cssText = "position:fixed;right:10px;bottom:64px;width:30px;height:30px;border:none;border-radius:50%;background:rgba(255,255,255,0.55);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#b8aca2;font-size:16px;padding:0;z-index:170;box-shadow:0 1px 6px rgba(0,0,0,0.06);";
+  b.onclick = ev => { ev.stopPropagation(); toggleMiniMenu(); };
+  document.body.appendChild(b);
+})();
