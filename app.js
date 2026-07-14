@@ -4051,3 +4051,159 @@ toggleMiniMenu = function () {
     });
   }, 60);
 };
+/* ==========================================
+   补丁 v17：手册瘦身 + 角色就地编辑 + 治键盘 + 让刘海
+   ========================================== */
+
+/* 一、手册去emoji + 按钮减肥 */
+(function () {
+  const _rmb17 = renderMemBook;
+  renderMemBook = function (body, ch) {
+    _rmb17(body, ch);
+    body.querySelectorAll("button").forEach(b => {
+      b.textContent = b.textContent.replace("✍️", "").replace("➕", "").trim();
+    });
+    body.querySelectorAll(".btn").forEach(b => {
+      b.style.padding = "8px 14px";
+      b.style.fontSize = "14px";
+    });
+  };
+})();
+
+/* 二、角色就地编辑 */
+function charPool() {
+  const pools = ["chars", "characters", "roles", "charList"];
+  for (let i = 0; i < pools.length; i++) {
+    if (state[pools[i]] && state[pools[i]].length) return state[pools[i]];
+  }
+  return null;
+}
+
+function openCharEditor(ch) {
+  const old = document.getElementById("char-editor");
+  if (old) old.remove();
+  const ov = el("div", "");
+  ov.id = "char-editor";
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(250,247,244,0.98);z-index:210;display:flex;flex-direction:column;";
+  if (state.settings.darkMode) ov.style.background = "rgba(38,36,40,0.98)";
+  const head = el("div", "");
+  head.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:calc(14px + env(safe-area-inset-top)) 16px 10px;";
+  const tt = el("div", "", "编辑角色");
+  tt.style.cssText = "font-size:17px;font-weight:600;";
+  const close = el("button", "seg-btn", "取消");
+  close.onclick = () => ov.remove();
+  head.appendChild(tt);
+  head.appendChild(close);
+  ov.appendChild(head);
+  const body = el("div", "");
+  body.style.cssText = "flex:1;overflow-y:auto;padding:6px 16px 60px;";
+  ov.appendChild(body);
+
+  const inputCss = "width:100%;padding:10px 12px;border-radius:12px;border:1px solid #e5ddd6;font-size:14px;box-sizing:border-box;background:rgba(255,255,255,0.8);";
+  function label(t) {
+    const l = el("div", "", t);
+    l.style.cssText = "font-size:13px;font-weight:600;margin:16px 2px 6px;";
+    body.appendChild(l);
+  }
+  function pick(keys) {
+    for (let i = 0; i < keys.length; i++) { if (ch[keys[i]]!== undefined) return keys[i]; }
+    return keys[0];
+  }
+
+  label("角色名字");
+  const nameIn = document.createElement("input");
+  nameIn.value = ch.name || "";
+  nameIn.style.cssText = inputCss;
+  body.appendChild(nameIn);
+
+  const pk = pick(["persona", "prompt", "sysPrompt", "systemPrompt", "system", "desc"]);
+  label("人设提示词");
+  const pIn = document.createElement("textarea");
+  pIn.value = ch[pk] || "";
+  pIn.style.cssText = inputCss + "min-height:200px;line-height:1.6;";
+  body.appendChild(pIn);
+
+  const ak = pick(["aiName", "aiNick", "botName"]);
+  label("他的昵称");
+  const aIn = document.createElement("input");
+  aIn.value = ch[ak] || "";
+  aIn.style.cssText = inputCss;
+  body.appendChild(aIn);
+
+  const uk = pick(["userName", "myName", "userNick"]);
+  label("你的昵称");
+  const uIn = document.createElement("input");
+  uIn.value = ch[uk] || "";
+  uIn.style.cssText = inputCss;
+  body.appendChild(uIn);
+
+  const save = el("button", "btn", "保存");
+  save.style.cssText = "width:100%;margin-top:22px;";
+  save.onclick = () => {
+    ch.name = nameIn.value.trim() || ch.name;
+    ch[pk] = pIn.value;
+    ch[ak] = aIn.value.trim();
+    ch[uk] = uIn.value.trim();
+    saveState();
+    ov.remove();
+    toast("角色改好了");
+    try { renderMessages(); } catch (e) {}
+  };
+  body.appendChild(save);
+  document.body.appendChild(ov);
+}
+
+/* 角色列表每行挂"编辑"入口，盯梢式注入 */
+setInterval(() => {
+  const arr = charPool();
+  if (!arr) return;
+  const rows = [];
+  document.querySelectorAll("div,span").forEach(n => {
+    const leaf = n.childElementCount === 0 || (n.childElementCount === 1 && n.firstElementChild.dataset && n.firstElementChild.dataset.myedit);
+    if (leaf && /个会话/.test(n.textContent)) rows.push(n);
+  });
+  rows.forEach((n, i) => {
+    if (n.dataset.editified) return;
+    n.dataset.editified = "1";
+    const b = el("span", "", " · 编辑");
+    b.dataset.myedit = "1";
+    b.style.cssText = "color:#c9964a;";
+    b.onclick = ev => {
+      ev.stopPropagation();
+      const c = arr[i];
+      if (c) openCharEditor(c);
+      else toast("没对上号，告诉克一声");
+    };
+    n.appendChild(b);
+  });
+}, 900);
+
+/* 三、治键盘：键盘收起把页面按回原位 */
+(function () {
+  function settle() {
+    setTimeout(() => { window.scrollTo(0, 0); document.body.scrollTop = 0; }, 80);
+  }
+  document.addEventListener("focusout", settle);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", () => {
+      if (window.visualViewport.height > window.innerHeight - 60) settle();
+    });
+  }
+})();
+
+/* 四、让刘海：全屏模式下顶栏给时钟让位 */
+(function () {
+  const mv = document.querySelector("meta[name=viewport]");
+  if (mv && mv.content.indexOf("viewport-fit") < 0) mv.content = mv.content + ",viewport-fit=cover";
+  let st7 = document.getElementById("polish-style-7");
+  if (!st7) {
+    st7 = document.createElement("style");
+    st7.id = "polish-style-7";
+    document.head.appendChild(st7);
+  }
+  const L = [];
+  L.push(".panel-header{padding-top:calc(12px + env(safe-area-inset-top));}");
+  L.push(".topbar{padding-top:calc(8px + env(safe-area-inset-top));}");
+  L.push("#topbar{padding-top:calc(8px + env(safe-area-inset-top));}");
+  st7.textContent = L.join(NL);
+})();
