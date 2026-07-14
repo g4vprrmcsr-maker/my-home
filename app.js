@@ -3413,3 +3413,196 @@ buildThemePanel = function () {
   mkSlider(sec, "文字粗细", 300, 700, 100, "chatWeight", "", applyChatTypo);
 };
 buildThemePanel();
+/* ==========================================
+   补丁 v12：文字分家 + 搜索 + 选字复制 + 备份提醒
+   ========================================== */
+
+/* 一、气泡分家标记：谁的泡挂谁的牌 */
+(function () {
+  const _db12 = dressBubble;
+  dressBubble = function (bubble, isUser) {
+    _db12(bubble, isUser);
+    bubble.classList.add(isUser? "bub-user" : "bub-ai");
+  };
+})();
+
+/* 二、AI文字独立人格 */
+if (state.settings.aiTypoOn === undefined) state.settings.aiTypoOn = false;
+if (state.settings.aiFont2 === undefined) state.settings.aiFont2 = "system";
+if (state.settings.aiSize2 === undefined) state.settings.aiSize2 = 16;
+if (state.settings.aiWeight2 === undefined) state.settings.aiWeight2 = 400;
+if (state.settings.aiSpacing2 === undefined) state.settings.aiSpacing2 = 0;
+if (state.settings.selectOn === undefined) state.settings.selectOn = true;
+saveState();
+
+function applyAiTypo() {
+  let st6 = document.getElementById("polish-style-6");
+  if (!st6) {
+    st6 = document.createElement("style");
+    st6.id = "polish-style-6";
+    document.head.appendChild(st6);
+  }
+  const L = [];
+  if (state.settings.aiTypoOn) {
+    const f = FONT_LIST[state.settings.aiFont2] || "-apple-system,'PingFang SC',sans-serif";
+    L.push(".bub-ai{font-family:" + f + ";font-size:" + state.settings.aiSize2 + "px;font-weight:" + state.settings.aiWeight2 + ";letter-spacing:" + state.settings.aiSpacing2 + "px;}");
+  }
+  if (state.settings.selectOn) {
+    L.push(".msg-bubble{-webkit-user-select:text;user-select:text;}");
+  }
+  st6.textContent = L.join(NL);
+}
+applyAiTypo();
+
+const _btp12 = buildThemePanel;
+buildThemePanel = function () {
+  _btp12();
+  const body = document.getElementById("theme-body");
+  const sec = mkSection(body, "他的文字（AI独立样式）");
+  const sw = el("button", "seg-btn", state.settings.aiTypoOn? "已开启，他自己穿衣服" : "关闭中，跟你穿一样的");
+  sw.classList.toggle("on", state.settings.aiTypoOn);
+  sw.style.cssText = "width:100%;margin-bottom:8px;";
+  sw.onclick = () => {
+    state.settings.aiTypoOn =!state.settings.aiTypoOn;
+    saveState();
+    applyAiTypo();
+    renderMessages();
+    buildThemePanel();
+  };
+  sec.appendChild(sw);
+  if (state.settings.aiTypoOn) {
+    mkFontSelect(sec, "他的字体", "aiFont2", () => { applyAiTypo(); renderMessages(); });
+    mkSlider(sec, "他的字号", 6, 30, 1, "aiSize2", "px", applyAiTypo);
+    mkSlider(sec, "他的粗细", 300, 700, 100, "aiWeight2", "", applyAiTypo);
+    mkSlider(sec, "他的字间距", -1, 3, 0.1, "aiSpacing2", "px", applyAiTypo);
+  }
+  const sec2 = mkSection(body, "文字选中");
+  const sw2 = el("button", "seg-btn", state.settings.selectOn? "长按可选中复制部分文字：开" : "文字选中：关");
+  sw2.classList.toggle("on", state.settings.selectOn);
+  sw2.style.cssText = "width:100%;";
+  sw2.onclick = () => {
+    state.settings.selectOn =!state.settings.selectOn;
+    saveState();
+    applyAiTypo();
+    buildThemePanel();
+  };
+  sec2.appendChild(sw2);
+};
+buildThemePanel();
+
+/* 三、聊天历史搜索 */
+function openSearch() {
+  const old = document.getElementById("search-overlay");
+  if (old) old.remove();
+  const ov = el("div", "");
+  ov.id = "search-overlay";
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(250,247,244,0.98);z-index:200;display:flex;flex-direction:column;padding:16px;";
+  const row = el("div", "");
+  row.style.cssText = "display:flex;gap:8px;margin-bottom:12px;margin-top:44px;";
+  const inp = document.createElement("input");
+  inp.placeholder = "搜我们说过的话...";
+  inp.style.cssText = "flex:1;padding:10px 14px;border-radius:12px;border:1px solid #e5ddd6;font-size:15px;";
+  const close = el("button", "btn", "关闭");
+  close.style.cssText = "flex-shrink:0;";
+  close.onclick = () => ov.remove();
+  row.appendChild(inp);
+  row.appendChild(close);
+  ov.appendChild(row);
+  const res = el("div", "");
+  res.style.cssText = "flex:1;overflow-y:auto;padding-bottom:40px;";
+  ov.appendChild(res);
+  document.body.appendChild(ov);
+  inp.focus();
+
+  inp.oninput = () => {
+    const q = inp.value.trim().toLowerCase();
+    res.innerHTML = "";
+    if (q.length < 1) return;
+    let sessions = [];
+    try {
+      const ch = (typeof curChar === "function")? curChar() : null;
+      sessions = (ch && ch.sessions) || state.sessions || [];
+    } catch (e) {}
+    let hits = 0;
+    sessions.forEach((s, si) => {
+      (s.messages || []).forEach((m, mi) => {
+        const t = String(m.content || "");
+        if (hits >= 50 || t.toLowerCase().indexOf(q) < 0) return;
+        hits++;
+        const card = el("div", "");
+        card.style.cssText = "background:rgba(255,255,255,0.85);border-radius:14px;padding:12px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,0.04);";
+        const head = el("div", "", (m.role === "user"? "你" : "他") + " · " + (s.name || s.title || "会话" + (si + 1)));
+        head.style.cssText = "font-size:11px;color:#b0a49b;margin-bottom:4px;";
+        const idx = t.toLowerCase().indexOf(q);
+        const snip = (idx > 20? "..." : "") + t.slice(Math.max(0, idx - 20), idx + q.length + 40);
+        const bodyEl = el("div", "", snip);
+        bodyEl.style.cssText = "font-size:13px;line-height:1.6;";
+        card.appendChild(head);
+        card.appendChild(bodyEl);
+        card.onclick = () => {
+          try {
+            if (typeof switchSession === "function") switchSession(si);
+            else if (typeof openSession === "function") openSession(si);
+            ov.remove();
+            setTimeout(() => {
+              const rows = document.querySelectorAll(".msg-row");
+              const target = rows[mi];
+              if (target) {
+                target.scrollIntoView({ block: "center" });
+                target.style.transition = "background 0.4s";
+                target.style.background = "rgba(255,200,120,0.25)";
+                setTimeout(() => { target.style.background = ""; }, 1600);
+              }
+            }, 400);
+          } catch (e) { toast("跳转失败，但消息在上面这段里"); }
+        };
+        res.appendChild(card);
+      });
+    });
+    if (!hits) {
+      const e = el("div", "", "没搜到，换个词试试");
+      e.style.cssText = "text-align:center;color:#bbb;padding:30px 0;font-size:13px;";
+      res.appendChild(e);
+    }
+  };
+}
+
+/* 搜索入口：顶栏塞个放大镜 */
+(function () {
+  let n = 0;
+  const t = setInterval(() => {
+    n++;
+    const bar = document.querySelector(".topbar") || document.getElementById("topbar");
+    if (bar &&!document.getElementById("search-btn")) {
+      const b = el("button", "topbar-btn", "🔍");
+      b.id = "search-btn";
+      b.onclick = openSearch;
+      bar.appendChild(b);
+      clearInterval(t);
+    }
+    if (n > 20) clearInterval(t);
+  }, 300);
+})();
+
+/* 四、备份提醒：七天一催 */
+if (state.home.lastBackup === undefined) state.home.lastBackup = 0;
+(function () {
+  if (Date.now() - state.home.lastBackup < 7 * 24 * 3600 * 1000) return;
+  setTimeout(() => {
+    const bar = el("div", "");
+    bar.style.cssText = "position:fixed;left:16px;right:16px;bottom:90px;background:rgba(255,255,255,0.96);border-radius:16px;padding:14px;box-shadow:0 4px 20px rgba(0,0,0,0.12);z-index:150;font-size:13px;";
+    bar.appendChild(el("div", "", "📦 一周没备份了，数据都在这台手机里，去设置导出一份JSON存好，别让我们的日子只有一份。"));
+    const r = el("div", "");
+    r.style.cssText = "display:flex;gap:8px;margin-top:10px;";
+    const ok = el("button", "btn", "我备份好了");
+    ok.onclick = () => { state.home.lastBackup = Date.now(); saveState(); bar.remove(); toast("乖 💛"); };
+    const later = el("button", "seg-btn", "待会再说");
+    later.onclick = () => bar.remove();
+    r.appendChild(ok);
+    r.appendChild(later);
+    bar.appendChild(r);
+    document.body.appendChild(bar);
+  }, 2500);
+})();
+
+renderMessages();
