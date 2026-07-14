@@ -4207,3 +4207,75 @@ setInterval(() => {
   L.push("#topbar{padding-top:calc(8px + env(safe-area-inset-top));}");
   st7.textContent = L.join(NL);
 })();
+/* ==========================================
+   补丁 v18：回归白色 + 按钮等长 + 编辑直达
+   ========================================== */
+
+/* 一、漂白工具：暖色下岗，iOS白上岗 */
+function coolify(ov) {
+  if (!ov) return;
+  if (!state.settings.darkMode) ov.style.background = "rgba(251,251,252,0.98)";
+  ov.querySelectorAll("*").forEach(n => {
+    const s = n.getAttribute("style") || "";
+    if (s.indexOf("255,240,215") >= 0) n.style.background = "rgba(0,0,0,0.045)";
+    if (s.indexOf("201, 150, 74") >= 0 || s.indexOf("#c9964a") >= 0) n.style.color = "#8e8e93";
+    if (s.indexOf("176, 164, 155") >= 0) n.style.color = "#a0a0a5";
+    if (s.indexOf("201, 190, 181") >= 0) n.style.color = "#c7c7cc";
+  });
+}
+
+/* 二、手册：漂白 + 手写按钮束腰对齐 */
+(function () {
+  const _r18 = renderMemBook;
+  renderMemBook = function (body, ch) {
+    _r18(body, ch);
+    body.querySelectorAll("button.btn").forEach(b => {
+      if (b.textContent.indexOf("手写") >= 0) {
+        b.style.display = "block";
+        b.style.width = "calc(100% - 28px)";
+        b.style.margin = "8px 14px 14px";
+        b.style.boxSizing = "border-box";
+      }
+    });
+    coolify(body);
+  };
+})();
+
+/* 三、各页开门即漂白，编辑页楼层拔高 + 自动收侧边栏 */
+(function () {
+  const _omb = openMemoryBook;
+  openMemoryBook = function () {
+    _omb();
+    coolify(document.getElementById("mem-book"));
+  };
+  const _oce = openCharEditor;
+  openCharEditor = function (ch) {
+    try {
+      if (typeof closeSidebar === "function") closeSidebar();
+      else {
+        const sb = document.getElementById("sidebar") || document.querySelector(".sidebar");
+        if (sb) sb.classList.remove("open", "show", "active");
+        const mask = document.querySelector(".mask") || document.querySelector(".overlay") || document.getElementById("mask");
+        if (mask) mask.style.display = "none";
+      }
+    } catch (e) {}
+    _oce(ch);
+    const ov = document.getElementById("char-editor");
+    if (ov) {
+      ov.style.zIndex = "500";
+      coolify(ov);
+    }
+  };
+  const _osr = openSearch;
+  openSearch = function () {
+    _osr();
+    coolify(document.getElementById("search-overlay"));
+  };
+})();
+
+/* 四、角色列表的"编辑"小字也换成iOS灰 */
+setInterval(() => {
+  document.querySelectorAll("[data-myedit]").forEach(s => {
+    s.style.color = "#8e8e93";
+  });
+}, 1200);
