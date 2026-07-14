@@ -3606,3 +3606,79 @@ if (state.home.lastBackup === undefined) state.home.lastBackup = 0;
 })();
 
 renderMessages();
+/* ==========================================
+   补丁 v13：放大镜下岗 + 输入栏隐藏小菜单
+   ========================================== */
+
+/* 一、拆掉顶栏放大镜，连补位的都杀 */
+(function () {
+  let n = 0;
+  const t = setInterval(() => {
+    n++;
+    const b = document.getElementById("search-btn");
+    if (b) b.remove();
+    if (n > 25) clearInterval(t);
+  }, 300);
+})();
+
+/* 二、小菜单本体：毛玻璃，从下往上冒 */
+function toggleMiniMenu() {
+  const old = document.getElementById("mini-menu");
+  if (old) { old.remove(); return; }
+  const m = el("div", "");
+  m.id = "mini-menu";
+  m.style.cssText = "position:fixed;right:14px;bottom:96px;background:rgba(255,255,255,0.94);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,0.12);z-index:180;overflow:hidden;min-width:160px;";
+  if (state.settings.darkMode) m.style.background = "rgba(50,48,52,0.95)";
+  const items = [
+    { t: "🔍 搜索聊天记录", f: () => { m.remove(); openSearch(); } },
+    { t: "📒 记忆手册", f: () => {
+        m.remove();
+        try {
+          if (typeof openMemoryPanel === "function") openMemoryPanel();
+          else if (document.getElementById("memory-panel")) openPanel("#memory-panel");
+          else toast("记忆入口在角色设置里，下一班车给它搬家");
+        } catch (e) { toast("记忆入口在角色设置里"); }
+      } },
+    { t: "📦 备份导出", f: () => {
+        m.remove();
+        try {
+          if (typeof exportJSON === "function") { exportJSON(); state.home.lastBackup = Date.now(); saveState(); }
+          else if (typeof exportData === "function") { exportData(); state.home.lastBackup = Date.now(); saveState(); }
+          else toast("去设置页导出JSON就行");
+        } catch (e) { toast("去设置页导出JSON就行"); }
+      } }
+  ];
+  items.forEach((it, i) => {
+    const r = el("div", "", it.t);
+    r.style.cssText = "padding:13px 16px;font-size:14px;" + (i? "border-top:1px solid rgba(0,0,0,0.05);" : "");
+    r.onclick = it.f;
+    m.appendChild(r);
+  });
+  document.body.appendChild(m);
+  setTimeout(() => {
+    document.addEventListener("click", function h(e) {
+      if (!m.contains(e.target) && e.target.id!== "mini-menu-btn") {
+        m.remove();
+        document.removeEventListener("click", h);
+      }
+    });
+  }, 60);
+}
+
+/* 三、入口：输入栏里一个安静的小点 */
+(function () {
+  let n = 0;
+  const t = setInterval(() => {
+    n++;
+    const bar = document.getElementById("input-bar") || document.querySelector(".input-bar") || document.querySelector(".input-area");
+    if (bar &&!document.getElementById("mini-menu-btn")) {
+      const b = el("button", "", "⋯");
+      b.id = "mini-menu-btn";
+      b.style.cssText = "flex-shrink:0;width:28px;height:28px;border:none;background:transparent;color:#c0b5ac;font-size:17px;padding:0;align-self:center;";
+      b.onclick = ev => { ev.stopPropagation(); toggleMiniMenu(); };
+      bar.appendChild(b);
+      clearInterval(t);
+    }
+    if (n > 25) clearInterval(t);
+  }, 300);
+})();
