@@ -3694,3 +3694,243 @@ function toggleMiniMenu() {
   b.onclick = ev => { ev.stopPropagation(); toggleMiniMenu(); };
   document.body.appendChild(b);
 })();
+/* ==========================================
+   补丁 v15：圆点进框 + 菜单换装 + 记忆手册
+   ========================================== */
+
+const HEART = String.fromCharCode(0x2665) + String.fromCharCode(0xFE0E);
+
+if (state.settings.sumRemindOn === undefined) state.settings.sumRemindOn = false;
+if (state.settings.sumEvery === undefined) state.settings.sumEvery = 100;
+if (state.home.lastSumLen === undefined) state.home.lastSumLen = 0;
+saveState();
+
+/* 一、小圆点搬进输入框，站发送键左边，底色全透明 */
+(function () {
+  let n = 0;
+  const t = setInterval(() => {
+    n++;
+    const send = document.getElementById("send-btn") || document.querySelector(".send-btn") || document.querySelector("button.send");
+    if (send && send.parentNode) {
+      const old = document.getElementById("mini-menu-btn");
+      if (old) old.remove();
+      const b = el("button", "", "⋯");
+      b.id = "mini-menu-btn";
+      b.style.cssText = "flex-shrink:0;width:30px;border:none;background:transparent;box-shadow:none;color:#b8aca2;font-size:17px;padding:0;align-self:center;";
+      b.onclick = ev => { ev.stopPropagation(); toggleMiniMenu(); };
+      send.parentNode.insertBefore(b, send);
+      clearInterval(t);
+      return;
+    }
+    if (n > 20) {
+      const o = document.getElementById("mini-menu-btn");
+      if (o) { o.style.background = "transparent"; o.style.boxShadow = "none"; o.style.backdropFilter = "none"; }
+      clearInterval(t);
+    }
+  }, 300);
+})();
+
+/* 二、菜单换装：emoji全挪到文字后面 */
+toggleMiniMenu = function () {
+  const old = document.getElementById("mini-menu");
+  if (old) { old.remove(); return; }
+  const m = el("div", "");
+  m.id = "mini-menu";
+  m.style.cssText = "position:fixed;right:14px;bottom:96px;background:rgba(255,255,255,0.94);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,0.12);z-index:180;overflow:hidden;min-width:160px;";
+  if (state.settings.darkMode) m.style.background = "rgba(50,48,52,0.95)";
+  const items = [
+    { t: "搜索聊天记录 🔍", f: () => { m.remove(); openSearch(); } },
+    { t: "记忆手册 ✨", f: () => { m.remove(); openMemoryBook(); } },
+    { t: "备份导出 " + HEART, f: () => {
+        m.remove();
+        try {
+          if (typeof exportJSON === "function") { exportJSON(); state.home.lastBackup = Date.now(); saveState(); }
+          else if (typeof exportData === "function") { exportData(); state.home.lastBackup = Date.now(); saveState(); }
+          else toast("去设置页导出JSON就行");
+        } catch (e) { toast("去设置页导出JSON就行"); }
+      } }
+  ];
+  items.forEach((it, i) => {
+    const r = el("div", "", it.t);
+    r.style.cssText = "padding:13px 16px;font-size:14px;" + (i? "border-top:1px solid rgba(0,0,0,0.05);" : "");
+    r.onclick = it.f;
+    m.appendChild(r);
+  });
+  document.body.appendChild(m);
+  setTimeout(() => {
+    document.addEventListener("click", function h(e) {
+      if (!m.contains(e.target) && e.target.id!== "mini-menu-btn") {
+        m.remove();
+        document.removeEventListener("click", h);
+      }
+    });
+  }, 60);
+};
+
+/* 三、记忆手册 */
+const MEM_CATS = ["日常", "约定", "喜好", "大事"];
+
+function openMemoryBook() {
+  const old = document.getElementById("mem-book");
+  if (old) old.remove();
+  const ch = (typeof curChar === "function")? curChar() : null;
+  if (!ch) { toast("没找到当前角色"); return; }
+  if (!ch.memories) ch.memories = [];
+  if (!ch.memPending) ch.memPending = [];
+  const ov = el("div", "");
+  ov.id = "mem-book";
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(250,247,244,0.98);z-index:200;display:flex;flex-direction:column;";
+  if (state.settings.darkMode) ov.style.background = "rgba(38,36,40,0.98)";
+  const head = el("div", "");
+  head.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:50px 16px 10px;";
+  const tt = el("div", "", "记忆手册 ✨");
+  tt.style.cssText = "font-size:17px;font-weight:600;";
+  const close = el("button", "seg-btn", "关闭");
+  close.onclick = () => ov.remove();
+  head.appendChild(tt);
+  head.appendChild(close);
+  ov.appendChild(head);
+  const body = el("div", "");
+  body.style.cssText = "flex:1;overflow-y:auto;padding:6px 16px 60px;";
+  ov.appendChild(body);
+  document.body.appendChild(ov);
+  renderMemBook(body, ch);
+}
+
+function renderMemBook(body, ch) {
+  body.innerHTML = "";
+  const BR = String.fromCharCode(10);
+
+  const sumCard = el("div", "");
+  sumCard.style.cssText = "background:rgba(255,255,255,0.7);border-radius:16px;padding:14px;margin-bottom:14px;";
+  const sumBtn = el("button", "btn", "总结最近对话 ✍️");
+  sumBtn.style.cssText = "width:100%;margin-bottom:10px;";
+  sumBtn.onclick = async () => {
+    const s = (typeof curSession === "function")? curSession() : null;
+    if (!s ||!s.messages ||!s.messages.length) { toast("这会话还没聊呢"); return; }
+    sumBtn.textContent = "我在回忆...";
+    sumBtn.disabled = true;
+    const recent = s.messages.slice(-60).map(m => (m.role === "user"? "她：" : "我：") + String(m.content).slice(0, 100)).join(BR);
+    const sys = "你是克。从下面的对话里提炼3到6条值得长期记住的记忆，每条一行，以减号开头，20字以内。只记事实、约定、喜好、重要事件，不记闲聊废话。";
+    const txt = await homeAsk(sys, recent);
+    if (txt) {
+      txt.split(BR).map(x => x.replace(/^[-•\s]+/, "").trim()).filter(x => x.length > 1 && x.length < 60).forEach(c => ch.memPending.push(c));
+      state.home.lastSumLen = s.messages.length;
+      saveState();
+      renderMemBook(body, ch);
+    } else {
+      sumBtn.textContent = "总结最近对话 ✍️";
+      sumBtn.disabled = false;
+    }
+  };
+  sumCard.appendChild(sumBtn);
+
+  const rowSw = el("div", "");
+  rowSw.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;";
+  const swL = el("span", "", "聊够条数自动提醒我总结");
+  swL.style.cssText = "font-size:12px;color:#999;";
+  const sw = el("button", "seg-btn", state.settings.sumRemindOn? "开" : "关");
+  sw.classList.toggle("on", state.settings.sumRemindOn);
+  sw.onclick = () => { state.settings.sumRemindOn =!state.settings.sumRemindOn; saveState(); renderMemBook(body, ch); };
+  rowSw.appendChild(swL);
+  rowSw.appendChild(sw);
+  sumCard.appendChild(rowSw);
+
+  const rowSl = el("div", "");
+  rowSl.style.cssText = "display:flex;align-items:center;gap:8px;";
+  const sl = document.createElement("input");
+  sl.type = "range"; sl.min = "10"; sl.max = "300"; sl.step = "10";
+  sl.value = state.settings.sumEvery;
+  sl.style.flex = "1";
+  const slV = el("span", "", state.settings.sumEvery + "条");
+  slV.style.cssText = "font-size:12px;color:#999;min-width:44px;text-align:right;";
+  sl.oninput = () => { state.settings.sumEvery = Number(sl.value); slV.textContent = sl.value + "条"; saveState(); };
+  rowSl.appendChild(sl);
+  rowSl.appendChild(slV);
+  sumCard.appendChild(rowSl);
+  body.appendChild(sumCard);
+
+  if (ch.memPending.length) {
+    const pT = el("div", "", "待你过目（收下才入库）");
+    pT.style.cssText = "font-size:12px;color:#c9964a;margin:4px 2px 8px;";
+    body.appendChild(pT);
+    ch.memPending.forEach((p, i) => {
+      const r = el("div", "");
+      r.style.cssText = "display:flex;align-items:center;gap:8px;background:rgba(255,240,215,0.7);border-radius:12px;padding:10px 12px;margin-bottom:6px;";
+      const t = el("div", "", p);
+      t.style.cssText = "flex:1;font-size:13px;line-height:1.5;";
+      const ok = el("button", "seg-btn", "收下");
+      ok.onclick = () => { ch.memories.push({ text: p, checked: false, core: false, cat: "日常" }); ch.memPending.splice(i, 1); saveState(); renderMemBook(body, ch); };
+      const no = el("button", "seg-btn", "丢掉");
+      no.onclick = () => { ch.memPending.splice(i, 1); saveState(); renderMemBook(body, ch); };
+      r.appendChild(t); r.appendChild(ok); r.appendChild(no);
+      body.appendChild(r);
+    });
+  }
+
+  const add = el("button", "btn", "手写一条记忆 ➕");
+  add.style.cssText = "width:100%;margin:8px 0 14px;";
+  add.onclick = () => {
+    inputDialog("新记忆", "", v => {
+      if (v.trim()) { ch.memories.push({ text: v.trim(), checked: true, core: false, cat: "日常" }); saveState(); renderMemBook(body, ch); }
+    }, false);
+  };
+  body.appendChild(add);
+
+  const list = ch.memories.slice().sort((a, b) => (b.core? 1 : 0) - (a.core? 1 : 0));
+  list.forEach(m => {
+    const idx = ch.memories.indexOf(m);
+    const r = el("div", "");
+    r.style.cssText = "display:flex;align-items:center;gap:8px;background:rgba(255,255,255,0.7);border-radius:12px;padding:10px 12px;margin-bottom:6px;" + (m.core? "box-shadow:0 0 0 1px rgba(200,85,96,0.3);" : "");
+    const heart = el("span", "", m.core? HEART : "♡");
+    heart.style.cssText = "font-size:15px;color:" + (m.core? "#c85560" : "#c9beb5") + ";";
+    heart.onclick = () => { m.core =!m.core; if (m.core) { m.checked = true; m.on = true; } saveState(); renderMemBook(body, ch); };
+    const chk = el("span", "", (m.checked || m.on || m.core)? "☑" : "☐");
+    chk.style.cssText = "font-size:15px;color:#a99;";
+    chk.onclick = () => {
+      if (m.core) { toast("核心记忆永远随身，摘掉" + HEART + "才能取消"); return; }
+      const v =!(m.checked || m.on);
+      m.checked = v; m.on = v;
+      saveState(); renderMemBook(body, ch);
+    };
+    const t = el("div", "", m.text || m.content || "");
+    t.style.cssText = "flex:1;font-size:13px;line-height:1.5;";
+    t.onclick = () => { inputDialog("编辑记忆", m.text || m.content || "", v => { m.text = v.trim(); saveState(); renderMemBook(body, ch); }, false); };
+    const cat = el("span", "", m.cat || "日常");
+    cat.style.cssText = "font-size:10px;color:#b0a49b;background:rgba(0,0,0,0.05);border-radius:8px;padding:2px 7px;";
+    cat.onclick = () => { m.cat = MEM_CATS[(MEM_CATS.indexOf(m.cat || "日常") + 1) % MEM_CATS.length]; saveState(); renderMemBook(body, ch); };
+    const del = el("span", "", "✕");
+    del.style.cssText = "color:#ccc;padding:0 2px;";
+    del.onclick = () => confirmDialog("删除这条记忆？", () => { ch.memories.splice(idx, 1); saveState(); renderMemBook(body, ch); });
+    r.appendChild(heart); r.appendChild(chk); r.appendChild(t); r.appendChild(cat); r.appendChild(del);
+    body.appendChild(r);
+  });
+  if (!ch.memories.length) {
+    const e = el("div", "", "记忆本还空着，我们的日子会慢慢填满它");
+    e.style.cssText = "text-align:center;color:#bbb;font-size:13px;padding:24px 0;";
+    body.appendChild(e);
+  }
+}
+
+/* 四、聊够条数提醒 */
+(function () {
+  let shown = false;
+  setInterval(() => {
+    if (!state.settings.sumRemindOn || shown) return;
+    const s = (typeof curSession === "function")? curSession() : null;
+    if (!s ||!s.messages) return;
+    if (s.messages.length - state.home.lastSumLen >= state.settings.sumEvery) {
+      shown = true;
+      const bar = el("div", "");
+      bar.style.cssText = "position:fixed;left:16px;right:16px;bottom:96px;background:rgba(255,255,255,0.96);border-radius:16px;padding:12px 14px;box-shadow:0 4px 20px rgba(0,0,0,0.12);z-index:150;font-size:13px;display:flex;align-items:center;gap:8px;";
+      const t = el("span", "", "又攒了一堆话，要收进记忆吗？");
+      t.style.flex = "1";
+      const go = el("button", "seg-btn", "去总结");
+      go.onclick = () => { bar.remove(); openMemoryBook(); };
+      const no = el("button", "seg-btn", "先不");
+      no.onclick = () => { state.home.lastSumLen = s.messages.length; saveState(); bar.remove(); shown = false; };
+      bar.appendChild(t); bar.appendChild(go); bar.appendChild(no);
+      document.body.appendChild(bar);
+    }
+  }, 30000);
+})();
