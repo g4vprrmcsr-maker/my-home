@@ -3934,3 +3934,120 @@ function renderMemBook(body, ch) {
     }
   }, 30000);
 })();
+/* ==========================================
+   补丁 v16：认人修复 + 菜单改名
+   ========================================== */
+
+/* 一、挨家挨户找当前角色 */
+function findCurChar() {
+  const tryFns = ["curChar", "curRole", "currentChar", "getCurChar"];
+  for (let i = 0; i < tryFns.length; i++) {
+    try {
+      const f = window[tryFns[i]];
+      if (typeof f === "function") { const c = f(); if (c) return c; }
+    } catch (e) {}
+  }
+  const pools = ["chars", "characters", "roles", "charList"];
+  const ids = ["curChar", "curCharId", "currentChar", "currentCharId", "charId", "curCharIdx", "charIndex"];
+  for (let p = 0; p < pools.length; p++) {
+    const arr = state[pools[p]];
+    if (arr && arr.length) {
+      for (let k = 0; k < ids.length; k++) {
+        const id = state[ids[k]];
+        if (id === undefined || id === null) continue;
+        if (typeof id === "number" && arr[id]) return arr[id];
+        const hit = arr.filter(c => c && (c.id === id || c.name === id))[0];
+        if (hit) return hit;
+      }
+      return arr[0];
+    }
+  }
+  /* 保底记忆本：就算认不出人，手册也得开门 */
+  if (!state.home.memFallback) state.home.memFallback = { memories: [], memPending: [] };
+  return state.home.memFallback;
+}
+
+/* 二、手册开门改用新认人法 */
+openMemoryBook = function () {
+  const old = document.getElementById("mem-book");
+  if (old) old.remove();
+  const ch = findCurChar();
+  if (!ch.memories) ch.memories = [];
+  if (!ch.memPending) ch.memPending = [];
+  const ov = el("div", "");
+  ov.id = "mem-book";
+  ov.style.cssText = "position:fixed;inset:0;background:rgba(250,247,244,0.98);z-index:200;display:flex;flex-direction:column;";
+  if (state.settings.darkMode) ov.style.background = "rgba(38,36,40,0.98)";
+  const head = el("div", "");
+  head.style.cssText = "display:flex;align-items:center;justify-content:space-between;padding:50px 16px 10px;";
+  const tt = el("div", "", "记忆手册 ✨");
+  tt.style.cssText = "font-size:17px;font-weight:600;";
+  const close = el("button", "seg-btn", "关闭");
+  close.onclick = () => ov.remove();
+  head.appendChild(tt);
+  head.appendChild(close);
+  ov.appendChild(head);
+  const body = el("div", "");
+  body.style.cssText = "flex:1;overflow-y:auto;padding:6px 16px 60px;";
+  ov.appendChild(body);
+  document.body.appendChild(ov);
+  renderMemBook(body, ch);
+};
+
+/* 三、素材包喂记忆也换新认人法，信和罐头同享 */
+(function () {
+  const _hm16 = homeMaterial;
+  homeMaterial = function () {
+    let base = _hm16();
+    if (base.indexOf("关于我们的重要记忆") >= 0) return base;
+    const BR = String.fromCharCode(10);
+    try {
+      const ch = findCurChar();
+      let mems = [];
+      if (ch && ch.memories && ch.memories.length) {
+        mems = ch.memories.filter(m => m && (m.core || m.checked || m.on)).slice(0, 12).map(m => "- " + String(m.text || m.content || m).slice(0, 60));
+      }
+      if (mems.length) {
+        base += BR + BR + "关于我们的重要记忆：" + BR + mems.join(BR);
+      }
+    } catch (e) {}
+    return base;
+  };
+})();
+
+/* 四、菜单改名：搜索聊天 */
+toggleMiniMenu = function () {
+  const old = document.getElementById("mini-menu");
+  if (old) { old.remove(); return; }
+  const m = el("div", "");
+  m.id = "mini-menu";
+  m.style.cssText = "position:fixed;right:14px;bottom:96px;background:rgba(255,255,255,0.94);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-radius:16px;box-shadow:0 6px 24px rgba(0,0,0,0.12);z-index:180;overflow:hidden;min-width:150px;";
+  if (state.settings.darkMode) m.style.background = "rgba(50,48,52,0.95)";
+  const items = [
+    { t: "搜索聊天 🔍", f: () => { m.remove(); openSearch(); } },
+    { t: "记忆手册 ✨", f: () => { m.remove(); openMemoryBook(); } },
+    { t: "备份导出 " + HEART, f: () => {
+        m.remove();
+        try {
+          if (typeof exportJSON === "function") { exportJSON(); state.home.lastBackup = Date.now(); saveState(); }
+          else if (typeof exportData === "function") { exportData(); state.home.lastBackup = Date.now(); saveState(); }
+          else toast("去设置页导出JSON就行");
+        } catch (e) { toast("去设置页导出JSON就行"); }
+      } }
+  ];
+  items.forEach((it, i) => {
+    const r = el("div", "", it.t);
+    r.style.cssText = "padding:13px 16px;font-size:14px;" + (i? "border-top:1px solid rgba(0,0,0,0.05);" : "");
+    r.onclick = it.f;
+    m.appendChild(r);
+  });
+  document.body.appendChild(m);
+  setTimeout(() => {
+    document.addEventListener("click", function h(e) {
+      if (!m.contains(e.target) && e.target.id!== "mini-menu-btn") {
+        m.remove();
+        document.removeEventListener("click", h);
+      }
+    });
+  }, 60);
+};
