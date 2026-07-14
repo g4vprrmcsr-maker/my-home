@@ -4333,3 +4333,61 @@ coolify = function (ov) {
     coolify(body);
   };
 })();
+/* ==========================================
+   补丁 v20：按钮瘦身 + 编辑页极简化 + my home
+   ========================================== */
+
+/* 一、手册两个按钮：等宽等高，居中，收敛 */
+(function () {
+  const _r20 = renderMemBook;
+  renderMemBook = function (body, ch) {
+    _r20(body, ch);
+    body.querySelectorAll("button.btn").forEach(b => {
+      const t = b.textContent;
+      if (t.indexOf("总结") >= 0 || t.indexOf("手写") >= 0 || t.indexOf("回忆") >= 0) {
+        b.style.cssText = "display:block;width:70%;height:38px;line-height:38px;padding:0;margin:0 auto 10px;font-size:13px;box-sizing:border-box;border-radius:12px;";
+      }
+      if (t.indexOf("手写") >= 0) {
+        b.style.marginTop = "4px";
+        b.style.marginBottom = "16px";
+      }
+    });
+    coolify(body);
+  };
+})();
+
+/* 二、角色编辑页：金框下岗，iOS默认极简风 */
+(function () {
+  const _oce20 = openCharEditor;
+  openCharEditor = function (ch) {
+    _oce20(ch);
+    const ov = document.getElementById("char-editor");
+    if (!ov) return;
+    ov.querySelectorAll("input,textarea").forEach(n => {
+      n.style.border = "1px solid rgba(0,0,0,0.08)";
+      n.style.background = "#fff";
+      n.style.borderRadius = "10px";
+    });
+    if (state.settings.darkMode) {
+      ov.querySelectorAll("input,textarea").forEach(n => {
+        n.style.border = "1px solid rgba(255,255,255,0.12)";
+        n.style.background = "rgba(255,255,255,0.06)";
+      });
+    }
+  };
+})();
+
+/* 三、侧边栏标题：小家 → my home */
+(function () {
+  let n = 0;
+  const t = setInterval(() => {
+    n++;
+    document.querySelectorAll("div,span,h1,h2,h3").forEach(x => {
+      if (x.childElementCount === 0 && x.textContent.trim() === "小家") {
+        x.textContent = "my home";
+        x.style.letterSpacing = "0.5px";
+      }
+    });
+    if (n > 30) clearInterval(t);
+  }, 500);
+})();
